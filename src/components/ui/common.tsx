@@ -20,7 +20,7 @@ export function PageHeader({
 
 export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div className="mb-4">
+    <div className="mb-4" suppressHydrationWarning>
       <h2 className="font-serif text-lg font-medium text-foreground">{title}</h2>
       {subtitle && <p className="text-sm text-text-muted mt-0.5">{subtitle}</p>}
     </div>
@@ -29,7 +29,7 @@ export function SectionHeader({ title, subtitle }: { title: string; subtitle?: s
 
 export function EmptyState({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="surface p-12 text-center">
+    <div className="surface p-12 text-center" suppressHydrationWarning>
       <p className="font-serif text-lg text-foreground">{title}</p>
       {description && <p className="text-sm text-text-muted mt-2">{description}</p>}
     </div>
@@ -38,7 +38,7 @@ export function EmptyState({ title, description }: { title: string; description?
 
 export function LoadingState({ message = "Loading..." }: { message?: string }) {
   return (
-    <div className="surface p-12 text-center">
+    <div className="surface p-12 text-center" suppressHydrationWarning>
       <p className="text-sm text-text-muted">{message}</p>
     </div>
   );
@@ -46,7 +46,7 @@ export function LoadingState({ message = "Loading..." }: { message?: string }) {
 
 export function ErrorState({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="surface p-12 text-center border-status-rejected">
+    <div className="surface p-12 text-center border-status-rejected" suppressHydrationWarning>
       <p className="font-serif text-lg text-status-rejected">{title}</p>
       {description && <p className="text-sm text-text-muted mt-2">{description}</p>}
     </div>

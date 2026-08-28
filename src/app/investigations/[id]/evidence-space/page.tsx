@@ -103,7 +103,7 @@ export default function EvidenceSpacePage() {
       ])
     : undefined;
 
-  if (loading) return <div className="p-8"><LoadingState /></div>;
+  if (loading) return <div className="p-8" suppressHydrationWarning><LoadingState /></div>;
 
   const ENTITY_TYPES = ["ALL", "PERSON", "PHONE", "ACCOUNT", "ORGANIZATION", "VEHICLE", "LOCATION"];
 
