@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${lora.variable} ${sourceSans.variable} h-full`}>
-      <body className="min-h-full antialiased">
+    <html lang="en" className={`${lora.variable} ${sourceSans.variable} h-full`} suppressHydrationWarning>
+      <body className="min-h-full antialiased" suppressHydrationWarning>
         <AppShell>{children}</AppShell>
       </body>
     </html>

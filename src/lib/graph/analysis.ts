@@ -26,6 +26,8 @@ export function buildGraphData(
   entities: (Entity & { metadata?: unknown })[],
   relationships: Relationship[]
 ): GraphData {
+  const nodeIds = new Set(entities.map((e) => e.id));
+
   const nodes: GraphNode[] = entities.map((e) => ({
     id: e.id,
     label: e.label,
@@ -34,14 +36,16 @@ export function buildGraphData(
     isBridge: (e.metadata as { bridge?: boolean })?.bridge,
   }));
 
-  const links: GraphLink[] = relationships.map((r) => ({
-    id: r.id,
-    source: r.sourceId,
-    target: r.targetId,
-    type: r.type,
-    status: r.status,
-    confidence: r.confidence,
-  }));
+  const links: GraphLink[] = relationships
+    .filter((r) => nodeIds.has(r.sourceId) && nodeIds.has(r.targetId))
+    .map((r) => ({
+      id: r.id,
+      source: r.sourceId,
+      target: r.targetId,
+      type: r.type,
+      status: r.status,
+      confidence: r.confidence,
+    }));
 
   return { nodes, links };
 }

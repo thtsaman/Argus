@@ -70,19 +70,23 @@ export default function ReplayPage() {
     });
   }
 
+  const nodeIds = new Set(cumulativeEntities.keys());
+
   const graphData: GraphData = {
     nodes: [...cumulativeEntities.values()].map((e) => ({
       id: e.id,
       label: e.label,
       type: e.type,
     })),
-    links: cumulativeRels.map((r) => ({
-      id: r.id,
-      source: r.source,
-      target: r.target,
-      type: "ASSOCIATED_WITH",
-      status: r.status as GraphData["links"][0]["status"],
-    })),
+    links: cumulativeRels
+      .filter((r) => nodeIds.has(r.source) && nodeIds.has(r.target))
+      .map((r) => ({
+        id: r.id,
+        source: r.source,
+        target: r.target,
+        type: "ASSOCIATED_WITH",
+        status: r.status as GraphData["links"][0]["status"],
+      })),
   };
 
   return (

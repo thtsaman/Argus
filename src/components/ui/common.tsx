@@ -8,12 +8,12 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-8">
-      <div>
+    <div className="flex items-start justify-between gap-4 mb-8" suppressHydrationWarning>
+      <div suppressHydrationWarning>
         <h1 className="font-serif text-2xl font-semibold text-foreground">{title}</h1>
         {description && <p className="text-sm text-text-secondary mt-1 max-w-2xl">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 shrink-0" suppressHydrationWarning>{actions}</div>}
     </div>
   );
 }

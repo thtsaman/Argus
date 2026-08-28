@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -215,8 +215,8 @@ model EvidenceItem {
   fileName        String?
   mimeType        String?
   filePath        String?
-  rawContent      String?        @db.Text
-  normalizedContent String?      @db.Text
+  rawContent      String?
+  normalizedContent String?
   metadata        Json?
   uploadedAt      DateTime       @default(now())
   processedAt     DateTime?
@@ -261,7 +261,7 @@ model RelationshipEvidence {
   relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
   evidenceId     String
   evidence       EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-  excerpt        String?      @db.Text
+  excerpt        String?
   pageRef        String?
   createdAt      DateTime     @default(now())
 
@@ -274,7 +274,7 @@ model EventEvidence {
   event      Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   evidenceId String
   evidence   EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-  excerpt    String?      @db.Text
+  excerpt    String?
   createdAt  DateTime     @default(now())
 
   @@unique([eventId, evidenceId])
@@ -290,9 +290,9 @@ model CandidateFinding {
   status          CandidateStatus @default(PENDING)
   confidence      Float?
   label           String
-  description     String?         @db.Text
+  description     String?
   data            Json
-  sourceExcerpt   String?         @db.Text
+  sourceExcerpt   String?
   entityId        String?
   entity          Entity?         @relation(fields: [entityId], references: [id])
   verifiedById    String?
@@ -311,8 +311,8 @@ model AIInsight {
   investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
   userId          String?
   user            User?    @relation(fields: [userId], references: [id])
-  query           String   @db.Text
-  response        String   @db.Text
+  query           String
+  response        String
   context         Json?
   evidenceRefs    Json?
   createdAt       DateTime @default(now())

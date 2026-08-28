@@ -19,7 +19,7 @@ export default async function InvestigationsPage() {
   });
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 py-8">
+    <div className="max-w-[1400px] mx-auto px-6 py-8" suppressHydrationWarning>
       <PageHeader
         title="Investigations"
         description="Select an investigation to explore evidence, relationships, and analysis."

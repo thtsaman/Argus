@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { GraphData } from "@/lib/graph/analysis";
 import { getLinkStyle } from "@/components/ui/RelationshipStatus";
@@ -41,6 +41,29 @@ export function EvidenceGraph({
   const [dims, setDims] = useState({ width, height });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const graphData = useMemo(() => {
+    const nodes = (data?.nodes || []).map((n) => ({ ...n }));
+    const nodeIds = new Set(nodes.map((n) => n.id));
+
+    const links = (data?.links || [])
+      .filter((l) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sourceId = typeof l.source === "object" ? (l.source as any).id : l.source;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const targetId = typeof l.target === "object" ? (l.target as any).id : l.target;
+        return nodeIds.has(sourceId) && nodeIds.has(targetId);
+      })
+      .map((l) => ({
+        ...l,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        source: typeof l.source === "object" ? (l.source as any).id : l.source,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        target: typeof l.target === "object" ? (l.target as any).id : l.target,
+      }));
+
+    return { nodes, links };
+  }, [data]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -59,8 +82,10 @@ export function EvidenceGraph({
   for (let i = 0; i < highlightedPath.length - 1; i++) {
     const a = highlightedPath[i];
     const b = highlightedPath[i + 1];
-    data.links.forEach((l) => {
-      if ((l.source === a && l.target === b) || (l.source === b && l.target === a)) {
+    graphData.links.forEach((l) => {
+      const sourceId = typeof l.source === "object" ? (l.source as any).id : l.source;
+      const targetId = typeof l.target === "object" ? (l.target as any).id : l.target;
+      if ((sourceId === a && targetId === b) || (sourceId === b && targetId === a)) {
         pathLinks.add(l.id);
       }
     });
@@ -134,7 +159,7 @@ export function EvidenceGraph({
   return (
     <div ref={containerRef} className="w-full h-full min-h-[500px] surface overflow-hidden">
       <ForceGraph2D
-        graphData={data}
+        graphData={graphData}
         width={dims.width}
         height={dims.height}
         nodeCanvasObject={nodeCanvasObject}
