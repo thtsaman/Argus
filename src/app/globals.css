@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f0e8;
+  --foreground: #2c2416;
+  --surface: #faf7f2;
+  --surface-elevated: #fdfcfa;
+  --border: #e8dfd0;
+  --border-strong: #d4c9b8;
+  --text-secondary: #5c4f3d;
+  --text-muted: #8a7d6b;
+  --accent: #6b5344;
+  --accent-hover: #564336;
+  --status-verified: #4a6741;
+  --status-review: #8b6914;
+  --status-ai: #7a5c8a;
+  --status-rejected: #8b4444;
+  --status-direct: #3d5a6b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-lora);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-source-sans), system-ui, sans-serif;
+}
+
+h1, h2, h3, .font-serif {
+  font-family: var(--font-lora), Georgia, serif;
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.surface-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(44, 36, 22, 0.06);
+}
+
+.status-direct { color: var(--status-direct); }
+.status-verified { color: var(--status-verified); }
+.status-review { color: var(--status-review); }
+.status-ai { color: var(--status-ai); }
+.status-rejected { color: var(--status-rejected); }
+
+.leaflet-container {
+  background: var(--surface) !important;
+  border-radius: 6px;
 }

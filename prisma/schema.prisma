@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  INVESTIGATOR
+  ANALYST
+  SUPERVISOR
+  ADMIN
+}
+
+enum InvestigationStatus {
+  ACTIVE
+  ON_HOLD
+  CLOSED
+  ARCHIVED
+}
+
+enum EntityType {
+  PERSON
+  PHONE
+  ACCOUNT
+  ORGANIZATION
+  DEVICE
+  VEHICLE
+  LOCATION
+  INCIDENT
+}
+
+enum RelationshipType {
+  ASSOCIATED_WITH
+  COMMUNICATED_WITH
+  TRANSACTED_WITH
+  LOCATED_AT
+  OWNS
+  EMPLOYED_BY
+  PARTICIPATED_IN
+  TRAVELED_TO
+  RELATED_TO
+}
+
+enum RelationshipStatus {
+  DIRECT
+  AI_SUGGESTED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum EvidenceType {
+  DOCUMENT
+  REPORT
+  COMMUNICATION
+  FINANCIAL
+  STRUCTURED_DATA
+  IMAGE
+  OTHER
+}
+
+enum EvidenceStatus {
+  PENDING
+  PROCESSING
+  EXTRACTED
+  REVIEWED
+  ARCHIVED
+}
+
+enum CandidateType {
+  ENTITY
+  EVENT
+  RELATIONSHIP
+  LOCATION
+}
+
+enum CandidateStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AuditAction {
+  EVIDENCE_VIEWED
+  EVIDENCE_CREATED
+  EVIDENCE_UPDATED
+  RELATIONSHIP_CREATED
+  RELATIONSHIP_VERIFIED
+  RELATIONSHIP_REJECTED
+  AI_QUERY_EXECUTED
+  AI_INSIGHT_GENERATED
+  INVESTIGATION_UPDATED
+  INVESTIGATION_VIEWED
+  CANDIDATE_VERIFIED
+  CANDIDATE_REJECTED
+  USER_LOGIN
+  AUDIT_CHAIN_VERIFIED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(ANALYST)
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  investigations Investigation[]
+  auditLogs      AuditLog[]
+  aiInsights     AIInsight[]
+  verifiedCandidates CandidateFinding[] @relation("VerifiedBy")
+}
+
+model Investigation {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  status      InvestigationStatus @default(ACTIVE)
+  caseNumber  String              @unique
+  startDate   DateTime?
+  endDate     DateTime?
+  leadId      String?
+  lead        User?               @relation(fields: [leadId], references: [id])
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  entities    Entity[]
+  evidence    EvidenceItem[]
+  events      Event[]
+  locations   Location[]
+  relationships Relationship[]
+  aiInsights  AIInsight[]
+  candidates  CandidateFinding[]
+}
+
+model Entity {
+  id              String     @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  type            EntityType
+  label           String
+  description     String?
+  metadata        Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  aliases         EntityAlias[]
+  events          Event[]
+  sourceRelations Relationship[] @relation("SourceEntity")
+  targetRelations Relationship[] @relation("TargetEntity")
+  candidates      CandidateFinding[]
+
+  @@index([investigationId])
+  @@index([type])
+}
+
+model EntityAlias {
+  id       String @id @default(cuid())
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  alias    String
+
+  @@index([entityId])
+}
+
+model Location {
+  id              String   @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  name            String
+  latitude        Float
+  longitude       Float
+  region          String?
+  address         String?
+  createdAt       DateTime @default(now())
+
+  events Event[]
+
+  @@index([investigationId])
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  occurredAt      DateTime
+  entityId        String?
+  entity          Entity?  @relation(fields: [entityId], references: [id])
+  locationId      String?
+  location        Location? @relation(fields: [locationId], references: [id])
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  evidenceLinks EventEvidence[]
+
+  @@index([investigationId])
+  @@index([occurredAt])
+}
+
+model EvidenceItem {
+  id              String         @id @default(cuid())
+  investigationId String
+  investigation   Investigation  @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  type            EvidenceType   @default(DOCUMENT)
+  status          EvidenceStatus @default(PENDING)
+  source          String?
+  fileName        String?
+  mimeType        String?
+  filePath        String?
+  rawContent      String?        @db.Text
+  normalizedContent String?      @db.Text
+  metadata        Json?
+  uploadedAt      DateTime       @default(now())
+  processedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  relationshipLinks RelationshipEvidence[]
+  eventLinks        EventEvidence[]
+  candidates        CandidateFinding[]
+
+  @@index([investigationId])
+  @@index([status])
+}
+
+model Relationship {
+  id              String             @id @default(cuid())
+  investigationId String
+  investigation   Investigation      @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  sourceId        String
+  source          Entity             @relation("SourceEntity", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetId        String
+  target          Entity             @relation("TargetEntity", fields: [targetId], references: [id], onDelete: Cascade)
+  type            RelationshipType
+  status          RelationshipStatus @default(DIRECT)
+  confidence      Float?
+  description     String?
+  discoveredAt    DateTime           @default(now())
+  verifiedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  evidence RelationshipEvidence[]
+
+  @@unique([sourceId, targetId, type])
+  @@index([investigationId])
+  @@index([status])
+}
+
+model RelationshipEvidence {
+  id             String       @id @default(cuid())
+  relationshipId String
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  evidenceId     String
+  evidence       EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  excerpt        String?      @db.Text
+  pageRef        String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([relationshipId, evidenceId])
+}
+
+model EventEvidence {
+  id         String       @id @default(cuid())
+  eventId    String
+  event      Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  evidenceId String
+  evidence   EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  excerpt    String?      @db.Text
+  createdAt  DateTime     @default(now())
+
+  @@unique([eventId, evidenceId])
+}
+
+model CandidateFinding {
+  id              String          @id @default(cuid())
+  investigationId String
+  investigation   Investigation   @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  evidenceId      String
+  evidence        EvidenceItem    @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  type            CandidateType
+  status          CandidateStatus @default(PENDING)
+  confidence      Float?
+  label           String
+  description     String?         @db.Text
+  data            Json
+  sourceExcerpt   String?         @db.Text
+  entityId        String?
+  entity          Entity?         @relation(fields: [entityId], references: [id])
+  verifiedById    String?
+  verifiedBy      User?           @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([investigationId])
+  @@index([status])
+}
+
+model AIInsight {
+  id              String   @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  query           String   @db.Text
+  response        String   @db.Text
+  context         Json?
+  evidenceRefs    Json?
+  createdAt       DateTime @default(now())
+
+  @@index([investigationId])
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id])
+  action       AuditAction
+  resourceType String?
+  resourceId   String?
+  metadata     Json?
+  previousHash String?
+  currentHash  String
+  createdAt    DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+}
