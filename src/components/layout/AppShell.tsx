@@ -18,16 +18,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const investigationNav = investigationId
     ? [
-        { href: `/investigations/${investigationId}`, label: "Overview" },
-        { href: `/investigations/${investigationId}/evidence-space`, label: "Evidence Space" },
-        { href: `/investigations/${investigationId}/bridge`, label: "Bridge View" },
-        { href: `/investigations/${investigationId}/timeline`, label: "Timeline" },
-        { href: `/investigations/${investigationId}/map`, label: "Geographic" },
-        { href: `/investigations/${investigationId}/replay`, label: "Replay" },
-        { href: `/investigations/${investigationId}/intake`, label: "Evidence Intake" },
-        { href: `/investigations/${investigationId}/review`, label: "Review" },
-        { href: `/investigations/${investigationId}/assistant`, label: "Assistant" },
-      ]
+      { href: `/investigations/${investigationId}`, label: "Overview" },
+      { href: `/investigations/${investigationId}/evidence-space`, label: "Evidence Space" },
+      { href: `/investigations/${investigationId}/bridge`, label: "Bridge View" },
+      { href: `/investigations/${investigationId}/timeline`, label: "Timeline" },
+      { href: `/investigations/${investigationId}/map`, label: "Geographic" },
+      { href: `/investigations/${investigationId}/replay`, label: "Replay" },
+      { href: `/investigations/${investigationId}/intake`, label: "Evidence Intake" },
+      { href: `/investigations/${investigationId}/review`, label: "Review" },
+      { href: `/investigations/${investigationId}/assistant`, label: "Assistant" },
+    ]
     : [];
 
   return (
@@ -47,11 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative px-3 py-1.5 text-sm rounded transition-colors ${
-                    isActive
+                  className={`relative px-3 py-1.5 text-sm rounded transition-colors ${isActive
                       ? "text-foreground font-medium"
                       : "text-text-secondary hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {isActive && (
                     <motion.span
@@ -75,11 +74,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative px-3 py-1 text-sm whitespace-nowrap rounded transition-colors ${
-                      isActive
+                    className={`relative px-3 py-1 text-sm whitespace-nowrap rounded transition-colors ${isActive
                         ? "text-foreground font-medium"
                         : "text-text-secondary hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {isActive && (
                       <motion.span
