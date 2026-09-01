@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import { APP_CONFIG } from "@/lib/config";
 import { motion } from "framer-motion";
 
@@ -33,14 +34,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col" suppressHydrationWarning>
       <header className="border-b border-border bg-surface-elevated sticky top-0 z-30" suppressHydrationWarning>
-        <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between" suppressHydrationWarning>
-          <div suppressHydrationWarning>
-            <Link href="/investigations" className="font-serif text-xl font-semibold text-foreground hover:text-accent transition-colors">
-              {APP_CONFIG.name}
-            </Link>
-            <p className="text-xs text-text-muted mt-0.5">{APP_CONFIG.tagline}</p>
-          </div>
-          <nav className="flex items-center gap-1 relative" suppressHydrationWarning>
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4" suppressHydrationWarning>
+          <Link href="/investigations" className="flex items-center gap-3.5 group shrink-0">
+            <Image
+              src={APP_CONFIG.logo}
+              alt={`${APP_CONFIG.name} Logo`}
+              width={42}
+              height={42}
+              priority
+              className="w-9 h-9 sm:w-10 sm:h-10 object-contain shrink-0"
+            />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-serif text-xl sm:text-2xl font-bold tracking-[0.25em] text-foreground group-hover:text-accent transition-colors leading-none">
+                  {APP_CONFIG.name}
+                </span>
+                <span className="text-[10px] sm:text-xs font-sans tracking-wider uppercase text-[#8b6914] px-1.5 py-0.5 border border-[#8b6914]/40 rounded-sm font-semibold leading-none shrink-0">
+                  {APP_CONFIG.version}
+                </span>
+              </div>
+              <span className="hidden sm:block text-[9px] sm:text-[10px] tracking-[0.18em] uppercase text-text-muted font-sans font-medium mt-1">
+                {APP_CONFIG.tagline}
+              </span>
+            </div>
+          </Link>
+          <nav className="flex items-center gap-1 relative shrink-0" suppressHydrationWarning>
             {NAV_ITEMS.map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (

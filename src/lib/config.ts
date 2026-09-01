@@ -1,9 +1,10 @@
 export const APP_CONFIG = {
-  name: "PROJECT_NAME",
-  shortName: "PROJECT",
-  tagline: "Connect evidence. Reveal relationships. Explain insights.",
+  name: "ARGUS",
+  version: "SYSTEM V2.0",
+  tagline: "OMNISCIENT EVIDENCE INTELLIGENCE PLATFORM",
   description:
     "An evidence-first investigation intelligence platform for exploring relationships, geographic patterns, and temporal connections.",
+  logo: "/images/logo.svg",
 } as const;
 
 export const WEST_BENGAL_LOCATIONS = [
