@@ -17,17 +17,14 @@ export async function GET(
   }
 
   // Fetch investigation context counts
-  const [investigationCount, eventsCount, locationsCount, relationshipEvidenceCount] = await Promise.all([
+  const [investigationCount, eventsCount, relationshipEvidenceCount] = await Promise.all([
     db.entity.count({
       where: { label: entity.label },
     }),
     db.event.count({
-      where: { investigationId: id, entities: { some: { entityId } } },
-    }),
-    db.location.count({
       where: { investigationId: id, entityId },
     }),
-    db.evidenceOnRelationship.count({
+    db.relationshipEvidence.count({
       where: { relationship: { OR: [{ sourceId: entityId }, { targetId: entityId }], investigationId: id } },
     }),
   ]);
@@ -72,8 +69,8 @@ export async function GET(
     whyItMatters = `Has ${pendingRels} AI-suggested or pending relationship(s) requiring investigator verification.`;
   } else if (relationships.length >= 4) {
     whyItMatters = `High network density with ${relationships.length} active relationships connected to key entities.`;
-  } else if (eventsCount > 0 || locationsCount > 0) {
-    whyItMatters = `Associated with ${eventsCount} chronological event(s) and ${locationsCount} tracked location(s).`;
+  } else if (eventsCount > 0) {
+    whyItMatters = `Associated with ${eventsCount} chronological event(s) in this investigation.`;
   }
 
   const context = {
@@ -81,7 +78,7 @@ export async function GET(
     relationshipCount: relationships.length,
     evidenceCount: relationshipEvidenceCount,
     eventCount: eventsCount,
-    locationCount: locationsCount,
+    locationCount: entity.type === "LOCATION" ? 1 : 0,
     whyItMatters,
   };
 
