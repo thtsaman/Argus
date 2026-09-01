@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { db } from "@/lib/db";
 import { PageHeader, SectionHeader } from "@/components/ui/common";
 import { RelationshipStatusBadge } from "@/components/ui/RelationshipStatus";
+import { generateInvestigationLeads } from "@/lib/investigation/leads";
+import { LeadsOverviewSection } from "@/components/investigation/LeadsOverviewSection";
 
 export default async function InvestigationOverviewPage({
   params,
@@ -46,6 +48,8 @@ export default async function InvestigationOverviewPage({
   });
 
   if (!investigation) notFound();
+
+  const leads = await generateInvestigationLeads(id);
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-8">
@@ -121,6 +125,9 @@ export default async function InvestigationOverviewPage({
           </dl>
         </div>
       </div>
+
+      {/* Investigation Leads Section */}
+      <LeadsOverviewSection leads={leads} investigationId={id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>

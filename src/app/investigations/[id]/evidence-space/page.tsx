@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { EvidenceGraph } from "@/components/graph/EvidenceGraph";
 import { PageHeader, SectionHeader, LoadingState } from "@/components/ui/common";
 import { RelationshipStatusBadge } from "@/components/ui/RelationshipStatus";
@@ -22,6 +22,10 @@ import { motion } from "framer-motion";
 
 export default function EvidenceSpacePage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const leadSource = searchParams.get("source");
+  const leadTarget = searchParams.get("target");
+
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [entityDetail, setEntityDetail] = useState<FullEntityDetail | null>(null);
@@ -81,6 +85,15 @@ export default function EvidenceSpacePage() {
     },
     [id]
   );
+
+  useEffect(() => {
+    if (leadSource) {
+      if (leadTarget) {
+        setFocusedRelationshipNodes(new Set([leadSource, leadTarget]));
+      }
+      loadEntityDetail(leadSource);
+    }
+  }, [leadSource, leadTarget, loadEntityDetail]);
 
   const handleSelectHistoryItem = (index: number) => {
     const item = entityHistory[index];
