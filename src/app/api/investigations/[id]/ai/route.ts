@@ -47,6 +47,7 @@ export async function POST(
     ]);
 
     const context = {
+      focusContext: body.focusContext || null,
       entities: entities.map((e) => ({ label: e.label, type: e.type })),
       relationships: relationships.map((r) => ({
         source: r.source.label,

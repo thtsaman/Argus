@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-export const idSchema = z.string().cuid();
+export const idSchema = z.string().min(1);
 
 export const aiQuerySchema = z.object({
   investigationId: idSchema,
   query: z.string().min(1).max(2000),
   entityId: idSchema.optional(),
   relationshipId: idSchema.optional(),
+  focusContext: z.any().optional(),
 });
 
 export const verifyRelationshipSchema = z.object({
