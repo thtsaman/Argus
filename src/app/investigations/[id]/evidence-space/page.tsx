@@ -5,38 +5,45 @@ import { useParams } from "next/navigation";
 import { EvidenceGraph } from "@/components/graph/EvidenceGraph";
 import { PageHeader, SectionHeader, LoadingState } from "@/components/ui/common";
 import { RelationshipStatusBadge } from "@/components/ui/RelationshipStatus";
+import {
+  EntityIntelligencePanel,
+  FullEntityDetail,
+  EntityContextData,
+  HistoryItem,
+} from "@/components/investigation/EntityIntelligencePanel";
+import {
+  RelationshipDetailPanel,
+  RelationshipData,
+} from "@/components/investigation/RelationshipDetail";
+import { EvidenceViewModal } from "@/components/investigation/EvidenceViewModal";
 import type { GraphData } from "@/lib/graph/analysis";
 import type { RelationshipStatus } from "@prisma/client";
 import { motion } from "framer-motion";
-
-interface EntityDetail {
-  id: string;
-  label: string;
-  type: string;
-  description: string | null;
-  aliases: { alias: string }[];
-}
-
-interface RelationshipDetail {
-  id: string;
-  type: string;
-  status: RelationshipStatus;
-  confidence: number | null;
-  source: { id: string; label: string };
-  target: { id: string; label: string };
-  evidence: { excerpt: string | null; evidence: { title: string } }[];
-}
 
 export default function EvidenceSpacePage() {
   const { id } = useParams<{ id: string }>();
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [entityDetail, setEntityDetail] = useState<EntityDetail | null>(null);
-  const [relatedRels, setRelatedRels] = useState<RelationshipDetail[]>([]);
+  const [entityDetail, setEntityDetail] = useState<FullEntityDetail | null>(null);
+  const [entityContext, setEntityContext] = useState<EntityContextData | undefined>(undefined);
+  const [relatedRels, setRelatedRels] = useState<RelationshipData[]>([]);
+
+  // Entity navigation history/breadcrumbs
+  const [entityHistory, setEntityHistory] = useState<HistoryItem[]>([]);
+
+  // Active inspectors
+  const [selectedRelationship, setSelectedRelationship] = useState<RelationshipData | null>(null);
+  const [evidenceModalRelationship, setEvidenceModalRelationship] =
+    useState<RelationshipData | null>(null);
+
+  // Graph filters & path tracer
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [pathSource, setPathSource] = useState<string>("");
   const [pathTarget, setPathTarget] = useState<string>("");
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
-  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [focusedRelationshipNodes, setFocusedRelationshipNodes] = useState<Set<string> | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [pathLoading, setPathLoading] = useState(false);
 
@@ -50,15 +57,53 @@ export default function EvidenceSpacePage() {
   }, [id]);
 
   const loadEntityDetail = useCallback(
-    async (nodeId: string) => {
+    async (nodeId: string, customHistoryLabel?: string) => {
       setSelectedNode(nodeId);
+      setSelectedRelationship(null);
+      setFocusedRelationshipNodes(null);
+
       const res = await fetch(`/api/investigations/${id}/entities/${nodeId}`);
       const data = await res.json();
-      setEntityDetail(data.entity);
+      const entity: FullEntityDetail = data.entity;
+
+      setEntityDetail(entity);
+      setEntityContext(data.context);
       setRelatedRels(data.relationships || []);
+
+      const currentLabel = customHistoryLabel || entity?.label || nodeId;
+      setEntityHistory((prev) => {
+        if (prev.some((h) => h.id === nodeId)) {
+          const existingIndex = prev.findIndex((h) => h.id === nodeId);
+          return prev.slice(0, existingIndex + 1);
+        }
+        return [...prev, { id: nodeId, label: currentLabel }];
+      });
     },
     [id]
   );
+
+  const handleSelectHistoryItem = (index: number) => {
+    const item = entityHistory[index];
+    if (item) {
+      setEntityHistory((prev) => prev.slice(0, index + 1));
+      loadEntityDetail(item.id, item.label);
+    }
+  };
+
+  const handleSelectConnectedEntity = (connectedId: string, connectedLabel: string) => {
+    loadEntityDetail(connectedId, connectedLabel);
+  };
+
+  const handleFocusGraphRelationship = (sourceId: string, targetId: string) => {
+    setFocusedRelationshipNodes(new Set([sourceId, targetId]));
+    setHighlightedPath([]);
+  };
+
+  const handleFocusGraphEntity = (entityId: string) => {
+    setSelectedNode(entityId);
+    setFocusedRelationshipNodes(null);
+    setHighlightedPath([]);
+  };
 
   const findPath = async () => {
     if (!pathSource || !pathTarget) return;
@@ -72,6 +117,7 @@ export default function EvidenceSpacePage() {
     setPathLoading(false);
     if (data.paths?.[0]) {
       setHighlightedPath(data.paths[0]);
+      setFocusedRelationshipNodes(null);
     } else {
       setHighlightedPath([]);
     }
@@ -79,16 +125,25 @@ export default function EvidenceSpacePage() {
 
   const filteredGraphData = useMemo(() => {
     if (!graphData) return null;
-    if (typeFilter === "ALL") return graphData;
 
-    const nodes = graphData.nodes.filter((n) => n.type === typeFilter);
+    let nodes = graphData.nodes;
+    if (typeFilter !== "ALL") {
+      nodes = nodes.filter((n) => n.type === typeFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      nodes = nodes.filter(
+        (n) => n.label.toLowerCase().includes(q) || n.type.toLowerCase().includes(q)
+      );
+    }
+
     const nodeIds = new Set(nodes.map((n) => n.id));
     const links = graphData.links.filter(
       (l) => nodeIds.has(l.source) && nodeIds.has(l.target)
     );
 
     return { nodes, links };
-  }, [graphData, typeFilter]);
+  }, [graphData, typeFilter, searchQuery]);
 
   const pathNodeLabels = useMemo(() => {
     if (!graphData || highlightedPath.length === 0) return [];
@@ -96,72 +151,117 @@ export default function EvidenceSpacePage() {
     return highlightedPath.map((id) => nodeMap.get(id)).filter(Boolean);
   }, [graphData, highlightedPath]);
 
-  const connectedNodes = selectedNode
-    ? new Set([
+  const activeHighlightedNodes = useMemo(() => {
+    if (focusedRelationshipNodes) return focusedRelationshipNodes;
+    if (selectedNode) {
+      return new Set([
         selectedNode,
-        ...(relatedRels.flatMap((r) => [r.source.id, r.target.id])),
-      ])
-    : undefined;
+        ...relatedRels.flatMap((r) => [r.source.id, r.target.id]),
+      ]);
+    }
+    return undefined;
+  }, [focusedRelationshipNodes, selectedNode, relatedRels]);
 
-  if (loading) return <div className="p-8" suppressHydrationWarning><LoadingState /></div>;
+  if (loading)
+    return (
+      <div className="p-8" suppressHydrationWarning>
+        <LoadingState />
+      </div>
+    );
 
   const ENTITY_TYPES = ["ALL", "PERSON", "PHONE", "ACCOUNT", "ORGANIZATION", "VEHICLE", "LOCATION"];
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-6">
       <PageHeader
-        title="Evidence Space & Graph Exploration"
-        description="Explore entity relationships with progressive focus. Click nodes on the graph to inspect evidence or trace shortest paths between entities."
+        title="Network Exploration & Entity Intelligence"
+        description="Select any entity to inspect its intelligence profile, relationships, and supporting evidence without tracing repetitive connections."
       />
 
-      {/* Top Filter Bar */}
+      {/* Primary Graph Filter Bar (Placed directly above graph) */}
       <div className="surface-elevated p-4 rounded-lg border border-border flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted font-medium uppercase tracking-wider">Entity Filter:</span>
-          <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-4 flex-1">
+          <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
+            Network
+          </span>
+
+          {/* Search Box */}
+          <div className="relative min-w-[200px] max-w-xs">
+            <input
+              type="text"
+              placeholder="Search entities..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs border border-border rounded px-3 py-1.5 bg-background focus:border-accent font-medium text-foreground transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1.5 text-xs text-text-muted hover:text-foreground"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Type Filter Buttons */}
+          <div className="flex flex-wrap gap-1 items-center">
             {ENTITY_TYPES.map((t) => (
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
-                className={`px-3 py-1 text-xs rounded-full transition-all ${
+                className={`px-2.5 py-1 text-xs rounded transition-all ${
                   typeFilter === t
                     ? "bg-accent text-surface-elevated font-semibold shadow-sm"
                     : "text-text-secondary hover:text-foreground hover:bg-background border border-border"
                 }`}
               >
-                {t}
+                {t === "ALL" ? "All" : t.charAt(0) + t.slice(1).toLowerCase()}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="text-xs text-text-muted">
+        <div className="text-xs text-text-muted shrink-0 font-mono">
           Showing {filteredGraphData?.nodes.length} nodes & {filteredGraphData?.links.length} links
         </div>
       </div>
 
+      {/* Main Grid: Graph + Inspector Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main Graph Area */}
+        {/* Graph & Path Controls */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="h-[600px] rounded-lg overflow-hidden border border-border relative">
+          <div className="h-[620px] rounded-lg overflow-hidden border border-border relative">
             {filteredGraphData && (
               <EvidenceGraph
                 data={filteredGraphData}
                 selectedNodeId={selectedNode}
                 highlightedPath={highlightedPath}
-                highlightedNodes={connectedNodes}
-                onNodeClick={loadEntityDetail}
-                height={600}
+                highlightedNodes={activeHighlightedNodes}
+                onNodeClick={(nodeId) => loadEntityDetail(nodeId)}
+                height={620}
               />
             )}
 
-            <div className="absolute top-3 left-3 bg-surface-elevated/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border text-xs text-text-secondary flex items-center gap-2">
+            <div className="absolute top-3 left-3 bg-surface-elevated/90 backdrop-blur-xs px-3 py-1.5 rounded-md border border-border text-xs text-text-secondary flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              <span>Click any node to reveal supporting evidence</span>
+              <span>Select any node to view entity intelligence</span>
             </div>
+
+            {focusedRelationshipNodes && (
+              <div className="absolute top-3 right-3 bg-surface-elevated/90 backdrop-blur-xs px-3 py-1.5 rounded-md border border-accent text-xs text-foreground flex items-center gap-2">
+                <span>Focused on relationship path</span>
+                <button
+                  onClick={() => setFocusedRelationshipNodes(null)}
+                  className="text-text-muted hover:text-foreground font-bold ml-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Interactive Connection Path Tracer */}
+          {/* Connection Path Tracer */}
           <div className="surface-elevated p-5 rounded-lg border border-border space-y-4">
             <SectionHeader
               title="Connection Path Tracer"
@@ -169,7 +269,9 @@ export default function EvidenceSpacePage() {
             />
             <div className="flex gap-3 items-end flex-wrap">
               <div className="flex-1 min-w-[200px]">
-                <label className="text-xs text-text-muted font-medium block mb-1">Source Entity</label>
+                <label className="text-xs text-text-muted font-medium block mb-1">
+                  Source Entity
+                </label>
                 <select
                   value={pathSource}
                   onChange={(e) => setPathSource(e.target.value)}
@@ -185,7 +287,9 @@ export default function EvidenceSpacePage() {
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="text-xs text-text-muted font-medium block mb-1">Target Entity</label>
+                <label className="text-xs text-text-muted font-medium block mb-1">
+                  Target Entity
+                </label>
                 <select
                   value={pathTarget}
                   onChange={(e) => setPathTarget(e.target.value)}
@@ -220,8 +324,14 @@ export default function EvidenceSpacePage() {
 
             {/* Path Breadcrumb Visualization */}
             {pathNodeLabels.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-lg bg-background border border-border space-y-2">
-                <span className="text-xs text-text-muted font-medium uppercase tracking-wider block">Discovered Connection Chain ({pathNodeLabels.length} hops):</span>
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-lg bg-background border border-border space-y-2"
+              >
+                <span className="text-xs text-text-muted font-medium uppercase tracking-wider block">
+                  Discovered Connection Chain ({pathNodeLabels.length} hops):
+                </span>
                 <div className="flex items-center gap-2 overflow-x-auto py-1">
                   {pathNodeLabels.map((n, i) => (
                     <div key={n?.id} className="flex items-center gap-2 shrink-0">
@@ -232,7 +342,9 @@ export default function EvidenceSpacePage() {
                         <span className="text-[10px] text-accent block uppercase">{n?.type}</span>
                         {n?.label}
                       </button>
-                      {i < pathNodeLabels.length - 1 && <span className="text-accent font-bold text-sm">&rarr;</span>}
+                      {i < pathNodeLabels.length - 1 && (
+                        <span className="text-accent font-bold text-sm">&rarr;</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -241,112 +353,57 @@ export default function EvidenceSpacePage() {
           </div>
         </div>
 
-        {/* Right Sidebar Inspector & Legend */}
+        {/* Right Sidebar: Entity Intelligence & Relationship Inspector */}
         <div className="space-y-4">
           <div className="surface-elevated p-4 rounded-lg border border-border space-y-3">
             <SectionHeader title="Relationship Legend" />
             <div className="flex flex-wrap gap-2">
-              {(["DIRECT", "VERIFIED", "UNDER_REVIEW", "AI_SUGGESTED", "REJECTED"] as RelationshipStatus[]).map(
-                (s) => (
-                  <RelationshipStatusBadge key={s} status={s} />
-                )
-              )}
+              {(
+                ["DIRECT", "VERIFIED", "UNDER_REVIEW", "AI_SUGGESTED", "REJECTED"] as RelationshipStatus[]
+              ).map((s) => (
+                <RelationshipStatusBadge key={s} status={s} />
+              ))}
             </div>
           </div>
 
-          {entityDetail ? (
-            <motion.div
-              key={entityDetail.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="surface-elevated p-5 rounded-lg border border-border shadow-sm space-y-4"
-            >
-              <div className="border-b border-border pb-3">
-                <span className="text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 bg-accent/10 text-accent rounded">
-                  {entityDetail.type}
-                </span>
-                <h3 className="font-serif text-xl font-semibold mt-1 text-foreground">{entityDetail.label}</h3>
-                {entityDetail.description && (
-                  <p className="text-xs text-text-secondary mt-1.5 line-clamp-3">{entityDetail.description}</p>
-                )}
-              </div>
-
-              {/* Set Path Buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPathSource(entityDetail.id)}
-                  className="flex-1 text-xs py-1.5 px-2 rounded border border-border bg-background hover:bg-surface hover:border-accent text-text-secondary hover:text-foreground font-medium transition-colors"
-                >
-                  Set as Source
-                </button>
-                <button
-                  onClick={() => setPathTarget(entityDetail.id)}
-                  className="flex-1 text-xs py-1.5 px-2 rounded border border-border bg-background hover:bg-surface hover:border-accent text-text-secondary hover:text-foreground font-medium transition-colors"
-                >
-                  Set as Target
-                </button>
-              </div>
-
-              {entityDetail.aliases.length > 0 && (
-                <div>
-                  <p className="text-xs text-text-muted font-medium mb-1">Known Aliases</p>
-                  <div className="flex flex-wrap gap-1">
-                    {entityDetail.aliases.map((a) => (
-                      <span key={a.alias} className="text-xs px-2 py-0.5 bg-background border border-border rounded text-text-secondary">
-                        {a.alias}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-text-muted font-medium">Relationships ({relatedRels.length})</span>
-                </div>
-
-                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                  {relatedRels.map((r) => {
-                    const isTarget = r.source.id === entityDetail.id;
-                    const connected = isTarget ? r.target : r.source;
-                    return (
-                      <div key={r.id} className="p-3 rounded bg-background border border-border hover:border-accent transition-colors space-y-1.5">
-                        <div className="flex justify-between items-center text-xs">
-                          <button
-                            onClick={() => loadEntityDetail(connected.id)}
-                            className="font-medium text-foreground hover:text-accent underline transition-colors"
-                          >
-                            {isTarget ? `→ ${connected.label}` : `← ${connected.label}`}
-                          </button>
-                          <span className="text-[10px] text-text-muted font-mono">{r.type}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <RelationshipStatusBadge status={r.status} />
-                          {r.confidence != null && (
-                            <span className="text-[10px] text-text-muted font-mono">{Math.round(r.confidence * 100)}% conf</span>
-                          )}
-                        </div>
-
-                        {r.evidence.length > 0 && (
-                          <div className="text-[11px] text-text-muted bg-surface p-1.5 rounded border border-border/50">
-                            <strong>Evidence:</strong> {r.evidence[0].evidence.title}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
+          {selectedRelationship ? (
+            <RelationshipDetailPanel
+              relationship={selectedRelationship}
+              investigationId={id}
+              onFocusGraph={handleFocusGraphRelationship}
+              onViewEvidence={(rel) => setEvidenceModalRelationship(rel)}
+              onClose={() => setSelectedRelationship(null)}
+            />
+          ) : entityDetail ? (
+            <EntityIntelligencePanel
+              entity={entityDetail}
+              context={entityContext}
+              relationships={relatedRels}
+              history={entityHistory}
+              onSelectEntityFromHistory={handleSelectHistoryItem}
+              onSelectConnectedEntity={handleSelectConnectedEntity}
+              onSelectRelationship={(rel) => setSelectedRelationship(rel)}
+              onFocusGraph={handleFocusGraphEntity}
+            />
           ) : (
             <div className="surface p-8 rounded-lg border border-border text-center space-y-2">
               <p className="text-sm font-medium text-foreground">No Entity Selected</p>
-              <p className="text-xs text-text-muted">Click any node on the graph or choose path entities to inspect detailed relationships and evidence.</p>
+              <p className="text-xs text-text-muted">
+                Click any node on the graph to open its Entity Intelligence panel and inspect its
+                relationships and supporting evidence.
+              </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Supporting Evidence Modal */}
+      {evidenceModalRelationship && (
+        <EvidenceViewModal
+          relationship={evidenceModalRelationship}
+          onClose={() => setEvidenceModalRelationship(null)}
+        />
+      )}
     </div>
   );
 }
