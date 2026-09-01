@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { InvestigationLead, LeadStatus } from "@/lib/investigation/leads";
 import { LeadPriorityBadge, LeadTypeBadge, LeadStatusBadge } from "./LeadBadges";
+import { VerificationActions } from "./VerificationActions";
+import type { RelationshipStatus } from "@prisma/client";
 
 interface LeadDetailProps {
   lead: InvestigationLead;
@@ -21,6 +24,11 @@ export function LeadDetail({
   onFocusGraph,
   onViewEvidence,
 }: LeadDetailProps) {
+  const [relationshipStatus, setRelationshipStatus] = useState<RelationshipStatus | null>(null);
+
+  const directEvidenceCount = lead.supportingEvidenceIds.length;
+  const isInferred = lead.leadType === "UNVERIFIED_RELATIONSHIP" || lead.leadType === "POTENTIAL_BRIDGE";
+
   return (
     <div className="surface-elevated p-5 rounded-lg border border-border space-y-5 shadow-sm">
       {/* Top Bar */}
@@ -39,7 +47,7 @@ export function LeadDetail({
         )}
       </div>
 
-      {/* Title & Status */}
+      {/* 1. Finding */}
       <div>
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-serif text-xl font-semibold text-foreground">{lead.title}</h3>
@@ -48,49 +56,91 @@ export function LeadDetail({
         <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">{lead.shortDescription}</p>
       </div>
 
-      {/* Why this was surfaced */}
-      <div className="space-y-2 p-3.5 bg-background rounded-lg border border-border">
-        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-          Why this lead was surfaced
-        </h4>
-        <ul className="space-y-1.5 text-xs text-text-secondary list-disc list-inside">
-          {lead.explanationBullets.map((bullet, idx) => (
-            <li key={idx} className="leading-relaxed">
-              {bullet}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Related Entities */}
-      {lead.relatedEntityLabels.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-xs text-text-muted font-semibold uppercase tracking-wider">
-            Related Entities
+      {/* 2. Structured Factual Breakdown (Mandatory Separation) */}
+      <div className="space-y-3 p-4 bg-background rounded-lg border border-border">
+        {/* Why surfaced */}
+        <div>
+          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-1">
+            Why this was surfaced
           </h4>
-          <div className="flex flex-wrap gap-1.5">
-            {lead.relatedEntityLabels.map((lbl, idx) => (
-              <span
-                key={idx}
-                className="text-xs px-2.5 py-1 bg-background border border-border rounded font-medium text-foreground"
-              >
-                {lbl}
-              </span>
-            ))}
+          <p className="text-xs text-text-secondary leading-relaxed">{lead.reason}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border/70 text-xs">
+          {/* What is known */}
+          <div className="space-y-1">
+            <span className="font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+              What is Known
+            </span>
+            <ul className="list-disc list-inside space-y-1 text-text-secondary">
+              {lead.supportingEvidenceTitles.length > 0 ? (
+                lead.supportingEvidenceTitles.slice(0, 2).map((t, idx) => (
+                  <li key={idx} className="truncate">
+                    Doc: {t}
+                  </li>
+                ))
+              ) : (
+                <li>Entity identities confirmed in system index</li>
+              )}
+            </ul>
+          </div>
+
+          {/* What is inferred */}
+          <div className="space-y-1">
+            <span className="font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+              What is Inferred
+            </span>
+            <p className="text-text-secondary">
+              {isInferred
+                ? "Relationship structural connection derived from analytical inference."
+                : "Standard entity extraction link."}
+            </p>
+          </div>
+
+          {/* What is missing */}
+          <div className="space-y-1">
+            <span className="font-semibold text-red-700 dark:text-red-400 uppercase tracking-wider block">
+              What is Missing
+            </span>
+            <p className="text-text-secondary">
+              {lead.leadType === "EVIDENCE_GAP"
+                ? "Lacks primary source documentation file."
+                : "Formal investigator verification."}
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Supporting Evidence */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs text-text-muted font-semibold uppercase tracking-wider">
-            Supporting Evidence ({lead.supportingEvidenceTitles.length})
-          </h4>
+      {/* 3. Evidence Strength Summary */}
+      <div className="p-3 surface rounded border border-border grid grid-cols-3 gap-2 text-center text-xs">
+        <div>
+          <span className="font-serif text-lg font-semibold text-foreground block">
+            {directEvidenceCount}
+          </span>
+          <span className="text-[10px] text-text-muted uppercase">Direct Evidence</span>
         </div>
+        <div>
+          <span className="font-serif text-lg font-semibold text-foreground block">
+            {isInferred ? 1 : 0}
+          </span>
+          <span className="text-[10px] text-text-muted uppercase">Inferred Link</span>
+        </div>
+        <div>
+          <span className="font-serif text-lg font-semibold text-foreground block">
+            {lead.leadType === "UNVERIFIED_RELATIONSHIP" ? 1 : 0}
+          </span>
+          <span className="text-[10px] text-text-muted uppercase">Unverified Link</span>
+        </div>
+      </div>
+
+      {/* 4. Supporting Evidence List */}
+      <div className="space-y-2">
+        <h4 className="text-xs text-text-muted font-semibold uppercase tracking-wider">
+          Supporting Evidence ({lead.supportingEvidenceTitles.length})
+        </h4>
         {lead.supportingEvidenceTitles.length === 0 ? (
           <p className="text-xs text-text-muted p-3 surface rounded border border-border">
-            No primary evidence files directly linked to this lead state.
+            No direct evidence documents attached.
           </p>
         ) : (
           <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
@@ -103,9 +153,9 @@ export function LeadDetail({
                 {onViewEvidence && (
                   <button
                     onClick={() => onViewEvidence([lead.supportingEvidenceIds[idx]])}
-                    className="text-[10px] text-accent hover:underline shrink-0"
+                    className="text-[10px] text-accent hover:underline shrink-0 font-medium"
                   >
-                    Inspect
+                    Inspect Evidence
                   </button>
                 )}
               </div>
@@ -114,12 +164,26 @@ export function LeadDetail({
         )}
       </div>
 
+      {/* 5. Relationship Verification Actions (if applicable) */}
+      {lead.relatedRelationshipId && (
+        <div className="p-3 bg-background rounded border border-border space-y-2">
+          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+            Review Relationship Decision
+          </h4>
+          <VerificationActions
+            relationshipId={lead.relatedRelationshipId}
+            investigationId={investigationId}
+            currentStatus={relationshipStatus || "UNDER_REVIEW"}
+            sourceLabel={lead.relatedEntityLabels[0] || "Source"}
+            targetLabel={lead.relatedEntityLabels[1] || "Target"}
+            supportingEvidenceCount={lead.supportingEvidenceIds.length}
+            onStatusUpdated={(st) => setRelationshipStatus(st)}
+          />
+        </div>
+      )}
+
       {/* Actions */}
       <div className="pt-3 border-t border-border space-y-2">
-        <h4 className="text-xs text-text-muted font-semibold uppercase tracking-wider mb-2">
-          Actions
-        </h4>
-
         <div className="grid grid-cols-2 gap-2">
           {onFocusGraph && (
             <button
@@ -130,20 +194,18 @@ export function LeadDetail({
             </button>
           )}
 
-          {lead.relatedRelationshipId && (
-            <Link
-              href={`/investigations/${investigationId}/review`}
-              className="text-xs py-2 px-3 border border-accent/40 bg-accent/5 text-accent rounded font-medium hover:bg-accent/10 transition-colors text-center"
-            >
-              Review Relationship
-            </Link>
-          )}
+          <Link
+            href={`/investigations/${investigationId}/review`}
+            className="text-xs py-2 px-3 border border-border bg-background hover:bg-surface text-text-secondary hover:text-foreground rounded font-medium transition-colors text-center"
+          >
+            Open Review Queue
+          </Link>
         </div>
 
-        {/* Status management buttons */}
+        {/* Lead status updates */}
         {onStatusChange && (
           <div className="flex items-center gap-1.5 pt-2">
-            <span className="text-[11px] text-text-muted font-medium mr-1">Update Status:</span>
+            <span className="text-[11px] text-text-muted font-medium mr-1">Lead Status:</span>
             {(["NEW", "INVESTIGATING", "RESOLVED", "DISMISSED"] as LeadStatus[]).map((st) => (
               <button
                 key={st}
