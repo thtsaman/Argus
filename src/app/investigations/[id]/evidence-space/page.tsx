@@ -390,6 +390,7 @@ export default function EvidenceSpacePage() {
           ) : entityDetail ? (
             <EntityIntelligencePanel
               entity={entityDetail}
+              investigationId={id}
               context={entityContext}
               relationships={relatedRels}
               history={entityHistory}

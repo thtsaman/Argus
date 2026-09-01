@@ -29,6 +29,7 @@ export interface HistoryItem {
 
 interface EntityIntelligencePanelProps {
   entity: FullEntityDetail;
+  investigationId: string;
   context?: EntityContextData;
   relationships: RelationshipData[];
   history: HistoryItem[];
@@ -40,6 +41,7 @@ interface EntityIntelligencePanelProps {
 
 export function EntityIntelligencePanel({
   entity,
+  investigationId,
   context,
   relationships,
   history,
@@ -114,6 +116,21 @@ export function EntityIntelligencePanel({
             ))}
           </div>
         )}
+
+        <div className="flex gap-2 mt-3 pt-2 border-t border-border/60">
+          <a
+            href={`/investigations/${investigationId}/timeline?entityId=${entity.id}&entityLabel=${encodeURIComponent(entity.label)}`}
+            className="text-xs px-2.5 py-1 rounded border border-border bg-background hover:bg-surface text-text-secondary hover:text-foreground font-medium transition-colors"
+          >
+            View Timeline
+          </a>
+          <a
+            href={`/investigations/${investigationId}/map?entityId=${entity.id}&entityLabel=${encodeURIComponent(entity.label)}`}
+            className="text-xs px-2.5 py-1 rounded border border-border bg-background hover:bg-surface text-text-secondary hover:text-foreground font-medium transition-colors"
+          >
+            View Locations
+          </a>
+        </div>
       </div>
 
       {/* Why this entity matters */}
