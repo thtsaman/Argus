@@ -2,14 +2,24 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const statusParam = searchParams.get("status");
+
+  const whereClause: any = { investigationId: id };
+  if (statusParam && statusParam !== "ALL") {
+    whereClause.status = statusParam;
+  }
 
   const candidates = await db.candidateFinding.findMany({
-    where: { investigationId: id, status: "PENDING" },
-    include: { evidence: { select: { title: true } } },
+    where: whereClause,
+    include: {
+      evidence: { select: { id: true, title: true, fileName: true } },
+      entity: { select: { id: true, label: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 

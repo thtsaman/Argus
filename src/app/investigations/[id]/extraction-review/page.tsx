@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { PageHeader, LoadingState, ConfidenceIndicator } from "@/components/ui/common";
 
 interface CandidateItem {
@@ -14,6 +15,11 @@ interface CandidateItem {
   confidence: number | null;
   sourceExcerpt: string | null;
   data: Record<string, any>;
+  entityId?: string | null;
+  entity?: {
+    id: string;
+    label: string;
+  } | null;
   evidence?: {
     id: string;
     title: string;
@@ -33,10 +39,11 @@ export default function ExtractionReviewPage() {
   const [processing, setProcessing] = useState(false);
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("PENDING");
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const loadCandidates = useCallback(async () => {
     try {
-      const res = await fetch(`/api/investigations/${id}/candidates`);
+      const res = await fetch(`/api/investigations/${id}/candidates?status=${statusFilter}`);
       const data = await res.json();
       setCandidates(data.candidates || []);
     } catch {
@@ -44,7 +51,7 @@ export default function ExtractionReviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, statusFilter]);
 
   useEffect(() => {
     loadCandidates();
@@ -52,21 +59,39 @@ export default function ExtractionReviewPage() {
 
   const handleAction = async (candidateId: string, action: "verify" | "reject") => {
     setProcessing(true);
+    setNotification(null);
     try {
       const res = await fetch(`/api/investigations/${id}/candidates/${candidateId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      if (!res.ok) throw new Error("Action failed");
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Action failed");
+      
+      if (action === "verify") {
+        setNotification({
+          message: "Approved → Added to Investigation Graph",
+          type: "success",
+        });
+      } else {
+        setNotification({
+          message: "Extraction Rejected — Kept in audit history",
+          type: "success",
+        });
+      }
+
       await loadCandidates();
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(candidateId);
         return next;
       });
-    } catch {
-      alert("Failed to update item decision");
+    } catch (err: any) {
+      setNotification({
+        message: err.message || "Failed to update item decision",
+        type: "error",
+      });
     } finally {
       setProcessing(false);
     }
@@ -75,18 +100,30 @@ export default function ExtractionReviewPage() {
   const handleApproveSelected = async () => {
     if (selectedIds.size === 0) return;
     setProcessing(true);
+    setNotification(null);
     try {
       for (const candId of Array.from(selectedIds)) {
-        await fetch(`/api/investigations/${id}/candidates/${candId}`, {
+        const res = await fetch(`/api/investigations/${id}/candidates/${candId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "verify" }),
         });
+        if (!res.ok) {
+          const resData = await res.json();
+          throw new Error(resData.error || "Failed to approve candidate");
+        }
       }
+      setNotification({
+        message: `Approved ${selectedIds.size} item(s) → Added to Investigation`,
+        type: "success",
+      });
       await loadCandidates();
       setSelectedIds(new Set());
-    } catch {
-      alert("Failed to approve selected candidates");
+    } catch (err: any) {
+      setNotification({
+        message: err.message || "Failed to approve selected candidates",
+        type: "error",
+      });
     } finally {
       setProcessing(false);
     }
@@ -148,8 +185,7 @@ export default function ExtractionReviewPage() {
 
   const filtered = candidates.filter((c) => {
     const matchesType = typeFilter === "ALL" || c.type === typeFilter;
-    const matchesStatus = statusFilter === "ALL" || c.status === statusFilter;
-    return matchesType && matchesStatus;
+    return matchesType;
   });
 
   const pendingItems = filtered.filter((c) => c.status === "PENDING");
@@ -160,7 +196,7 @@ export default function ExtractionReviewPage() {
       case "APPROVED":
         return (
           <span className="px-2 py-0.5 bg-status-verified/20 text-status-verified font-bold text-[10px] rounded uppercase tracking-wider">
-            INVESTIGATOR APPROVED (READY FOR GRAPH INTEGRATION)
+            Approved → Added to Investigation
           </span>
         );
       case "REJECTED":
@@ -184,6 +220,18 @@ export default function ExtractionReviewPage() {
         title="EXTRACTION REVIEW"
         description="Inspect, edit, and approve AI-extracted intelligence candidates prior to investigation graph integration."
       />
+
+      {notification && (
+        <div
+          className={`p-4 rounded-lg border text-xs font-medium ${
+            notification.type === "success"
+              ? "bg-status-verified/10 border-status-verified/40 text-status-verified"
+              : "bg-status-rejected/10 border-status-rejected/40 text-status-rejected"
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
 
       {/* Filter and Bulk Action Controls */}
       <div className="surface-elevated p-4 rounded-lg border border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -373,13 +421,28 @@ export default function ExtractionReviewPage() {
                   </div>
                 )}
 
-                {/* Source Excerpt */}
+                {/* Source Excerpt & Provenance */}
                 {item.sourceExcerpt && (
                   <div className="p-3 bg-background/60 rounded border border-border/60 text-xs font-mono text-text-secondary leading-relaxed">
                     <span className="text-[10px] text-text-muted font-sans font-semibold uppercase tracking-wider block mb-1">
                       Source Excerpt ({sourceDoc}):
                     </span>
                     "{item.sourceExcerpt}"
+                  </div>
+                )}
+
+                {/* Direct link to view trusted record when approved */}
+                {item.status === "VERIFIED" && (
+                  <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
+                    <span className="text-status-verified font-medium">
+                      ✓ Integrated into Investigation Graph
+                    </span>
+                    <Link
+                      href={`/investigations/${id}`}
+                      className="px-3 py-1 bg-surface border border-border rounded text-text-secondary hover:text-foreground transition-colors"
+                    >
+                      View in Graph →
+                    </Link>
                   </div>
                 )}
 

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/auth/permissions";
 import { createAuditLog } from "@/lib/audit/chain";
 import { verifyCandidateSchema } from "@/lib/validation/schemas";
-import { EntityType, RelationshipStatus, RelationshipType } from "@prisma/client";
+import { integrateApprovedCandidate } from "@/lib/investigation/graphIntegration";
 
 export async function PATCH(
   req: Request,
@@ -39,7 +39,16 @@ export async function PATCH(
       return NextResponse.json({ status: "rejected" });
     }
 
-    // Mark as VERIFIED (Investigator Approved, ready for Batch 12 Graph Integration)
+    // Integrate approved candidate into trusted graph
+    const result = await integrateApprovedCandidate(candidateId, user.id);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to integrate candidate into trusted graph" },
+        { status: 500 }
+      );
+    }
+
+    // Mark as VERIFIED (Approved & Integrated)
     await db.candidateFinding.update({
       where: { id: candidateId },
       data: { status: "VERIFIED", verifiedById: user.id, verifiedAt: new Date() },
@@ -50,10 +59,19 @@ export async function PATCH(
       action: "CANDIDATE_VERIFIED",
       resourceType: "CandidateFinding",
       resourceId: candidateId,
-      metadata: { type: candidate.type },
+      metadata: {
+        type: candidate.type,
+        integrationAction: result.action,
+        trustedEntityId: result.trustedEntityId,
+        trustedRelationshipId: result.trustedRelationshipId,
+      },
     });
 
-    return NextResponse.json({ status: "verified" });
+    return NextResponse.json({
+      status: "verified",
+      message: "Approved → Added to Investigation",
+      integration: result,
+    });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 403 });

@@ -131,6 +131,21 @@ export function EntityIntelligencePanel({
             View Locations
           </a>
         </div>
+
+        {/* Provenance Info */}
+        {entity.metadata && (entity.metadata as any).provenance && (
+          <div className="mt-3 p-2.5 bg-background/80 rounded border border-border/80 text-[11px] space-y-1 font-mono text-text-secondary">
+            <span className="text-[10px] text-accent font-sans font-semibold uppercase tracking-wider block">
+              Provenanced AI Extraction Record
+            </span>
+            <div>Source Evidence ID: {(entity.metadata as any).provenance.sourceEvidenceId}</div>
+            {(entity.metadata as any).provenance.sourceExcerpt && (
+              <div className="italic text-text-muted">
+                "{(entity.metadata as any).provenance.sourceExcerpt}"
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Why this entity matters */}
