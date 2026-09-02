@@ -39,7 +39,7 @@ const EXPLORE_ITEMS = [
 
 const EVIDENCE_ITEMS = [
   {
-    hrefSuffix: "/intake",
+    hrefSuffix: "/evidence-library",
     label: "Evidence Library",
     description: "Browse and inspect evidence files",
   },

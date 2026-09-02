@@ -5,6 +5,8 @@ export const APP_CONFIG = {
   description:
     "An evidence-first investigation intelligence platform for exploring relationships, geographic patterns, and temporal connections.",
   logo: "/images/logo.svg",
+  maxFileSizeBytes: 15 * 1024 * 1024, // 15MB
+  allowedExtensions: [".pdf", ".txt", ".md", ".csv"],
 } as const;
 
 export const WEST_BENGAL_LOCATIONS = [

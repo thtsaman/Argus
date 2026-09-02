@@ -33,51 +33,82 @@ export async function extractTextFromFile(
   mimeType: string,
   fileName: string
 ): Promise<string> {
-  if (mimeType === "text/plain" || fileName.endsWith(".txt")) {
-    return buffer.toString("utf-8");
+  const ext = fileName.split(".").pop()?.toLowerCase();
+
+  // Validate empty buffer
+  if (!buffer || buffer.length === 0) {
+    throw new Error("File is empty");
   }
 
-  if (mimeType === "application/json" || fileName.endsWith(".json")) {
-    return buffer.toString("utf-8");
+  // Plain Text & Markdown
+  if (mimeType === "text/plain" || ext === "txt" || ext === "md" || mimeType === "text/markdown") {
+    const text = buffer.toString("utf-8");
+    if (!text.trim()) throw new Error("File content is empty");
+    return text;
   }
 
-  if (mimeType === "text/csv" || fileName.endsWith(".csv")) {
-    return buffer.toString("utf-8");
+  // CSV Tabular formatting
+  if (mimeType === "text/csv" || ext === "csv") {
+    const rawCsv = buffer.toString("utf-8");
+    if (!rawCsv.trim()) throw new Error("CSV file content is empty");
+
+    const parsed = Papa.parse<Record<string, string>>(rawCsv, {
+      header: true,
+      skipEmptyLines: true,
+    });
+
+    if (parsed.errors && parsed.errors.length > 0 && parsed.data.length === 0) {
+      throw new Error(`CSV parsing failed: ${parsed.errors[0].message}`);
+    }
+
+    const headers = parsed.meta.fields || [];
+    let formattedText = `CSV Table: ${fileName}\n`;
+    formattedText += `Columns: ${headers.join(" | ")}\n\nRows:\n`;
+
+    parsed.data.forEach((row, idx) => {
+      const rowValues = headers.map((h) => row[h] || "").join(" | ");
+      formattedText += `[Row ${idx + 1}] ${rowValues}\n`;
+    });
+
+    return formattedText;
   }
 
-  if (
-    mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    fileName.endsWith(".docx")
-  ) {
-    const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
-  }
-
-  if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) {
+  // PDF Parsing
+  if (mimeType === "application/pdf" || ext === "pdf") {
     try {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       const result = await parser.getText();
       await parser.destroy();
-      return result.text;
-    } catch {
-      return "[PDF content could not be extracted]";
+      
+      const text = result?.text ? result.text.trim() : "";
+      if (!text) {
+        throw new Error("PDF contained no extractable text layer or is scanned image");
+      }
+      return text;
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("empty")) {
+        throw err;
+      }
+      throw new Error("Could not process this PDF. The file may be corrupted or contain unsupported content.");
     }
   }
 
-  return buffer.toString("utf-8");
+  // Fallback UTF-8 attempt
+  try {
+    return buffer.toString("utf-8");
+  } catch {
+    throw new Error("Invalid file encoding or unsupported file format");
+  }
 }
 
 export function detectMimeType(fileName: string): string {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const map: Record<string, string> = {
     pdf: "application/pdf",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     txt: "text/plain",
+    md: "text/markdown",
     csv: "text/csv",
-    json: "application/json",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
   return map[ext || ""] || "application/octet-stream";
 }
