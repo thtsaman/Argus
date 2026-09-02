@@ -138,12 +138,22 @@ export async function POST(
 
           if (extracted) {
             // Save Extracted Entities
+            const validCandidateTypes = new Set(["ENTITY", "EVENT", "RELATIONSHIP", "LOCATION", "VEHICLE", "ORGANIZATION", "ACCOUNT", "PHONE", "PERSON"]);
             for (const entity of extracted.entities) {
+              const entityTypeUpper = (entity.type || "").toUpperCase();
+              // If type is PERSON, maps to ENTITY or PERSON depending on enum, CandidateType has ENTITY, EVENT, RELATIONSHIP, LOCATION, VEHICLE, ORGANIZATION, ACCOUNT, PHONE
+              // Note: CandidateType enum contains: ENTITY, EVENT, RELATIONSHIP, LOCATION, VEHICLE, ORGANIZATION, ACCOUNT, PHONE
+              // 'PERSON' is not in CandidateType enum! It maps to 'ENTITY' or 'PERSON' if in enum.
+              let candidateType: any = "ENTITY";
+              if (validCandidateTypes.has(entityTypeUpper) && entityTypeUpper !== "PERSON") {
+                candidateType = entityTypeUpper;
+              }
+
               await db.candidateFinding.create({
                 data: {
                   investigationId: id,
                   evidenceId: evidenceRecord.id,
-                  type: (entity.type as any) || "ENTITY",
+                  type: candidateType,
                   status: "PENDING",
                   label: entity.name,
                   description: entity.aliases?.length ? `Aliases: ${entity.aliases.join(", ")}` : null,

@@ -50,14 +50,19 @@ function mapToRelationshipType(typeStr: string): RelationshipType {
 export async function findEntityMatch(
   investigationId: string,
   label: string,
-  type: EntityType,
+  type?: EntityType,
   candidateData?: any
 ) {
   const normLabel = normalizeString(label);
   if (!normLabel) return { match: null, status: "NONE" as const };
 
+  const whereClause: any = { investigationId };
+  if (type) {
+    whereClause.type = type;
+  }
+
   const existingEntities = await db.entity.findMany({
-    where: { investigationId, type },
+    where: whereClause,
     include: { aliases: true },
   });
 
@@ -110,13 +115,17 @@ export async function integrateApprovedCandidate(
   const excerpt = candidate.sourceExcerpt || candidateData.excerpt || candidate.description || "";
 
   try {
-    // 1. ENTITY CANDIDATES (PERSON, PHONE, ACCOUNT, ORGANIZATION, VEHICLE, DEVICE, etc.)
-    if (
+    // 1. ENTITY CANDIDATES (ENTITY, PERSON, PHONE, ACCOUNT, ORGANIZATION, VEHICLE, DEVICE, etc.)
+    const isEntityCandidate =
       ["ENTITY", "PERSON", "PHONE", "ACCOUNT", "ORGANIZATION", "VEHICLE", "DEVICE"].includes(
         candidate.type
-      )
-    ) {
-      const entityType = mapToEntityType(candidateData.entityType || candidate.type);
+      ) ||
+      ["ENTITY", "PERSON", "PHONE", "ACCOUNT", "ORGANIZATION", "VEHICLE", "DEVICE"].includes(
+        (candidateData.type || "").toUpperCase()
+      );
+
+    if (isEntityCandidate) {
+      const entityType = mapToEntityType(candidateData.type || candidateData.entityType || candidate.type);
       const label = candidate.label || candidateData.name || candidateData.label || "Unnamed Entity";
 
       const matchResult = await findEntityMatch(investigationId, label, entityType, candidateData);

@@ -13,9 +13,9 @@ export async function PATCH(
     const user = await requirePermission("relationship:verify");
     const { id, candidateId } = await params;
     const body = await req.json();
-    const parsed = verifyCandidateSchema.safeParse(body);
+    const parsed = verifyCandidateSchema.safeParse({ ...body, candidateId });
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
     const candidate = await db.candidateFinding.findFirst({
@@ -73,6 +73,7 @@ export async function PATCH(
       integration: result,
     });
   } catch (err) {
+    console.error("Error during candidate verification:", err);
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
