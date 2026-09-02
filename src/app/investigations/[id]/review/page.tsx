@@ -58,7 +58,8 @@ export default function ReviewQueuePage() {
       const candData = await candRes.json();
       const graphData = await graphRes.json();
 
-      setCandidates(candData.candidates || []);
+      const allCandidates: Candidate[] = candData.candidates || [];
+      setCandidates(allCandidates.filter((c) => c.status === "PENDING"));
 
       // Filter graph links that are under review or AI suggested
       if (graphData.links) {
@@ -83,8 +84,11 @@ export default function ReviewQueuePage() {
     loadQueueData();
   }, [loadQueueData]);
 
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
   const handleCandidateAction = async (candidateId: string, action: "verify" | "reject") => {
     setProcessingId(candidateId);
+    setNotification(null);
     try {
       const res = await fetch(`/api/investigations/${id}/candidates/${candidateId}`, {
         method: "PATCH",
@@ -92,9 +96,13 @@ export default function ReviewQueuePage() {
         body: JSON.stringify({ action }),
       });
       if (!res.ok) throw new Error("Action failed");
+      setNotification({
+        message: action === "verify" ? "Candidate Approved → Integrated into Investigation Graph!" : "Candidate Rejected — Kept in audit history",
+        type: "success",
+      });
       await loadQueueData();
     } catch {
-      alert("Failed to process candidate");
+      setNotification({ message: "Failed to process candidate", type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -102,6 +110,7 @@ export default function ReviewQueuePage() {
 
   const handleRelationshipAction = async (relationshipId: string, action: "verify" | "reject") => {
     setProcessingId(relationshipId);
+    setNotification(null);
     try {
       const res = await fetch(`/api/investigations/${id}/relationships/${relationshipId}`, {
         method: "PATCH",
@@ -109,9 +118,13 @@ export default function ReviewQueuePage() {
         body: JSON.stringify({ action }),
       });
       if (!res.ok) throw new Error("Action failed");
+      setNotification({
+        message: action === "verify" ? "Relationship Verified → Updated in Graph!" : "Relationship Rejected",
+        type: "success",
+      });
       await loadQueueData();
     } catch {
-      alert("Failed to process relationship decision");
+      setNotification({ message: "Failed to process relationship decision", type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -142,6 +155,18 @@ export default function ReviewQueuePage() {
         title="Review Queue & Decision Center"
         description="Inspect candidate findings, unverified relationships, and evidence conflicts requiring investigator verification."
       />
+
+      {notification && (
+        <div
+          className={`p-4 rounded-lg border text-xs font-medium ${
+            notification.type === "success"
+              ? "bg-status-verified/10 border-status-verified/40 text-status-verified"
+              : "bg-status-rejected/10 border-status-rejected/40 text-status-rejected"
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="surface-elevated p-4 rounded-lg border border-border flex items-center justify-between gap-4">

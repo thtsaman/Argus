@@ -184,8 +184,10 @@ export default function ExtractionReviewPage() {
   }
 
   const filtered = candidates.filter((c) => {
-    const matchesType = typeFilter === "ALL" || c.type === typeFilter;
-    return matchesType;
+    if (typeFilter === "ALL") return true;
+    const cTypeUpper = (c.type || "").toUpperCase();
+    const dataTypeUpper = ((c.data as any)?.type || (c.data as any)?.entityType || "").toUpperCase();
+    return cTypeUpper === typeFilter || dataTypeUpper === typeFilter;
   });
 
   const pendingItems = filtered.filter((c) => c.status === "PENDING");
