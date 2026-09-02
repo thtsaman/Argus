@@ -27,19 +27,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Image
               src={APP_CONFIG.logo}
               alt={`${APP_CONFIG.name} Logo`}
-              width={42}
-              height={42}
+              width={56}
+              height={56}
               priority
-              className="w-9 h-9 sm:w-10 sm:h-10 object-contain shrink-0"
+              className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0"
             />
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="font-serif text-xl sm:text-2xl font-bold tracking-[0.25em] text-foreground group-hover:text-accent transition-colors leading-none">
                   {APP_CONFIG.name}
                 </span>
-                <span className="text-[10px] sm:text-xs font-sans tracking-wider uppercase text-[#8b6914] px-1.5 py-0.5 border border-[#8b6914]/40 rounded-sm font-semibold leading-none shrink-0">
+                {/* <span className="text-[10px] sm:text-xs font-sans tracking-wider uppercase text-[#8b6914] px-1.5 py-0.5 border border-[#8b6914]/40 rounded-sm font-semibold leading-none shrink-0">
                   {APP_CONFIG.version}
-                </span>
+                </span> */}
               </div>
               <span className="hidden sm:block text-[9px] sm:text-[10px] tracking-[0.18em] uppercase text-text-muted font-sans font-medium mt-1">
                 {APP_CONFIG.tagline}

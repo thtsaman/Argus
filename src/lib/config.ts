@@ -4,7 +4,7 @@ export const APP_CONFIG = {
   tagline: "OMNISCIENT EVIDENCE INTELLIGENCE PLATFORM",
   description:
     "An evidence-first investigation intelligence platform for exploring relationships, geographic patterns, and temporal connections.",
-  logo: "/images/logo.svg",
+  logo: "/images/favicon.png",
   maxFileSizeBytes: 15 * 1024 * 1024, // 15MB
   allowedExtensions: [".pdf", ".txt", ".md", ".csv"],
 } as const;
