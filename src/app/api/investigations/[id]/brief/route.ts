@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/auth/permissions";
 import { generateInvestigationLeads } from "@/lib/investigation/leads";
+import { analyzeKeyEntities } from "@/lib/investigation/influenceAnalysis";
+import { detectSuspiciousPatterns } from "@/lib/investigation/patternDetection";
 
 export async function GET(
   req: Request,
@@ -38,7 +40,11 @@ export async function GET(
       return NextResponse.json({ error: "Investigation not found" }, { status: 404 });
     }
 
-    const leads = await generateInvestigationLeads(id);
+    const [leads, keyEntities, patterns] = await Promise.all([
+      generateInvestigationLeads(id),
+      analyzeKeyEntities(id),
+      detectSuspiciousPatterns(id),
+    ]);
 
     const relationships = investigation.relationships || [];
     const entities = investigation.entities || [];
@@ -62,13 +68,26 @@ export async function GET(
         endDate: investigation.endDate?.toISOString() || null,
         leadName: investigation.lead?.name || null,
       },
-      executiveSummary: `This investigation encompasses ${entities.length} tracked entities and ${relationships.length} relationships. Active lead engine analysis has surfaced ${leads.length} priority leads requiring verification.`,
+      executiveSummary: `This investigation encompasses ${entities.length} tracked entities and ${relationships.length} relationships. Active lead engine analysis has surfaced ${leads.length} priority leads requiring verification and ${patterns.length} network patterns.`,
       keyFindings: candidates.slice(0, 5).map((c: { id: string; label: string; status: string }) => ({
         id: c.id,
         finding: c.label,
         whyItMatters: "Analytical relationship candidate requiring review.",
         status: c.status,
         isInferred: true,
+      })),
+      keyEntities: keyEntities.map((k) => ({
+        id: k.entityId,
+        label: k.label,
+        category: k.category,
+        whyItMatters: k.whyItMatters,
+      })),
+      patterns: patterns.map((p) => ({
+        id: p.id,
+        title: p.title,
+        patternType: p.patternType,
+        explanation: p.explanation,
+        status: p.status,
       })),
       leads: leads.map((l) => ({
         id: l.id,
