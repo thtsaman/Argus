@@ -135,10 +135,10 @@ export default async function InvestigationOverviewPage({
           <div className="grid grid-cols-2 gap-3">
             {[
               { href: `/investigations/${id}/brief`, label: "Investigation Brief", desc: "Executive summary & findings" },
-              { href: `/investigations/${id}/evidence-space`, label: "Evidence Space", desc: "Entity relationship graph" },
-              { href: `/investigations/${id}/bridge`, label: "Bridge View", desc: "Connection storytelling" },
+              { href: `/investigations/${id}/evidence-space`, label: "Network", desc: "Entity relationship graph" },
+              { href: `/investigations/${id}/bridge`, label: "Connections", desc: "Connection storytelling" },
               { href: `/investigations/${id}/timeline`, label: "Timeline", desc: "Temporal patterns" },
-              { href: `/investigations/${id}/map`, label: "Geographic", desc: "Location analysis" },
+              { href: `/investigations/${id}/map`, label: "Map", desc: "Location analysis" },
               { href: `/investigations/${id}/replay`, label: "Replay", desc: "Investigation evolution" },
               { href: `/investigations/${id}/assistant`, label: "Assistant", desc: "Evidence-grounded AI" },
             ].map((item) => (

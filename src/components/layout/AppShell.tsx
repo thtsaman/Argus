@@ -6,6 +6,8 @@ import Image from "next/image";
 import { APP_CONFIG } from "@/lib/config";
 import { motion } from "framer-motion";
 
+import { InvestigationNav } from "@/components/investigation/InvestigationNav";
+
 const NAV_ITEMS = [
   { href: "/investigations", label: "Investigations" },
   { href: "/security", label: "Security" },
@@ -16,20 +18,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const investigationMatch = pathname.match(/\/investigations\/([^/]+)/);
   const investigationId = investigationMatch?.[1];
-
-  const investigationNav = investigationId
-    ? [
-      { href: `/investigations/${investigationId}`, label: "Overview" },
-      { href: `/investigations/${investigationId}/evidence-space`, label: "Evidence Space" },
-      { href: `/investigations/${investigationId}/bridge`, label: "Bridge View" },
-      { href: `/investigations/${investigationId}/timeline`, label: "Timeline" },
-      { href: `/investigations/${investigationId}/map`, label: "Geographic" },
-      { href: `/investigations/${investigationId}/replay`, label: "Replay" },
-      { href: `/investigations/${investigationId}/intake`, label: "Evidence Intake" },
-      { href: `/investigations/${investigationId}/review`, label: "Review" },
-      { href: `/investigations/${investigationId}/assistant`, label: "Assistant" },
-    ]
-    : [];
 
   return (
     <div className="min-h-screen flex flex-col" suppressHydrationWarning>
@@ -83,33 +71,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
         </div>
-        {investigationNav.length > 0 && (
-          <div className="border-t border-border" suppressHydrationWarning>
-            <div className="max-w-[1400px] mx-auto px-6 py-2 flex gap-1 overflow-x-auto" suppressHydrationWarning>
-              {investigationNav.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`relative px-3 py-1 text-sm whitespace-nowrap rounded transition-colors ${isActive
-                        ? "text-foreground font-medium"
-                        : "text-text-secondary hover:text-foreground"
-                      }`}
-                  >
-                    {isActive && (
-                      <motion.span
-                        layoutId="sub-nav-pill"
-                        className="absolute inset-0 bg-background rounded shadow-sm border border-border/50"
-                        transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                      />
-                    )}
-                    <span className="relative z-10">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+        {investigationId && (
+          <InvestigationNav investigationId={investigationId} />
         )}
       </header>
       <motion.main
