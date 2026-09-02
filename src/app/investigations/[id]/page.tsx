@@ -6,6 +6,8 @@ import { PageHeader, SectionHeader } from "@/components/ui/common";
 import { RelationshipStatusBadge } from "@/components/ui/RelationshipStatus";
 import { generateInvestigationLeads } from "@/lib/investigation/leads";
 import { LeadsOverviewSection } from "@/components/investigation/LeadsOverviewSection";
+import { analyzeKeyEntities } from "@/lib/investigation/influenceAnalysis";
+import { KeyEntitiesSection } from "@/components/investigation/KeyEntitiesSection";
 
 export default async function InvestigationOverviewPage({
   params,
@@ -49,7 +51,10 @@ export default async function InvestigationOverviewPage({
 
   if (!investigation) notFound();
 
-  const leads = await generateInvestigationLeads(id);
+  const [leads, keyEntities] = await Promise.all([
+    generateInvestigationLeads(id),
+    analyzeKeyEntities(id),
+  ]);
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-8">
@@ -125,6 +130,9 @@ export default async function InvestigationOverviewPage({
           </dl>
         </div>
       </div>
+
+      {/* Key Entities Section */}
+      <KeyEntitiesSection keyEntities={keyEntities} investigationId={id} />
 
       {/* Investigation Leads Section */}
       <LeadsOverviewSection leads={leads} investigationId={id} />
