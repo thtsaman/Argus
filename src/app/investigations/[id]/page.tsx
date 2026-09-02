@@ -8,6 +8,8 @@ import { generateInvestigationLeads } from "@/lib/investigation/leads";
 import { LeadsOverviewSection } from "@/components/investigation/LeadsOverviewSection";
 import { analyzeKeyEntities } from "@/lib/investigation/influenceAnalysis";
 import { KeyEntitiesSection } from "@/components/investigation/KeyEntitiesSection";
+import { detectSuspiciousPatterns } from "@/lib/investigation/patternDetection";
+import { PatternsOverviewSection } from "@/components/investigation/PatternsOverviewSection";
 
 export default async function InvestigationOverviewPage({
   params,
@@ -51,9 +53,10 @@ export default async function InvestigationOverviewPage({
 
   if (!investigation) notFound();
 
-  const [leads, keyEntities] = await Promise.all([
+  const [leads, keyEntities, patterns] = await Promise.all([
     generateInvestigationLeads(id),
     analyzeKeyEntities(id),
+    detectSuspiciousPatterns(id),
   ]);
 
   return (
@@ -133,6 +136,9 @@ export default async function InvestigationOverviewPage({
 
       {/* Key Entities Section */}
       <KeyEntitiesSection keyEntities={keyEntities} investigationId={id} />
+
+      {/* Detected Patterns & Signals Section */}
+      <PatternsOverviewSection initialPatterns={patterns} investigationId={id} />
 
       {/* Investigation Leads Section */}
       <LeadsOverviewSection leads={leads} investigationId={id} />
