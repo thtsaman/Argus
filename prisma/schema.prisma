@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -75,6 +75,10 @@ enum CandidateType {
   EVENT
   RELATIONSHIP
   LOCATION
+  VEHICLE
+  ORGANIZATION
+  ACCOUNT
+  PHONE
 }
 
 enum CandidateStatus {

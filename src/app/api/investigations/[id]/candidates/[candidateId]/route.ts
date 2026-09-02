@@ -39,56 +39,11 @@ export async function PATCH(
       return NextResponse.json({ status: "rejected" });
     }
 
+    // Mark as VERIFIED (Investigator Approved, ready for Batch 12 Graph Integration)
     await db.candidateFinding.update({
       where: { id: candidateId },
       data: { status: "VERIFIED", verifiedById: user.id, verifiedAt: new Date() },
     });
-
-    if (candidate.type === "ENTITY") {
-      const data = candidate.data as { type?: string; label?: string };
-      await db.entity.create({
-        data: {
-          investigationId: id,
-          type: (data.type as EntityType) || EntityType.PERSON,
-          label: data.label || candidate.label,
-          description: `Verified from evidence: ${candidate.label}`,
-        },
-      });
-    } else if (candidate.type === "RELATIONSHIP") {
-      const data = candidate.data as { source?: string; target?: string; type?: string };
-      const entities = await db.entity.findMany({ where: { investigationId: id } });
-      const source = entities.find((e) => e.label === data.source);
-      const target = entities.find((e) => e.label === data.target);
-      if (source && target) {
-        await db.relationship.create({
-          data: {
-            investigationId: id,
-            sourceId: source.id,
-            targetId: target.id,
-            type: (data.type as RelationshipType) || RelationshipType.ASSOCIATED_WITH,
-            status: RelationshipStatus.VERIFIED,
-            confidence: candidate.confidence,
-            verifiedAt: new Date(),
-            evidence: {
-              create: {
-                evidenceId: candidate.evidenceId,
-                excerpt: candidate.sourceExcerpt,
-              },
-            },
-          },
-        });
-      }
-    } else if (candidate.type === "EVENT") {
-      const data = candidate.data as { title?: string; description?: string; date?: string };
-      await db.event.create({
-        data: {
-          investigationId: id,
-          title: data.title || candidate.label,
-          description: data.description || candidate.description,
-          occurredAt: data.date ? new Date(data.date) : new Date(),
-        },
-      });
-    }
 
     await createAuditLog({
       userId: user.id,

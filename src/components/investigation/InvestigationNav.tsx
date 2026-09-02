@@ -48,6 +48,11 @@ const EVIDENCE_ITEMS = [
     label: "Evidence Intake",
     description: "Upload or paste new evidence",
   },
+  {
+    hrefSuffix: "/extraction-review",
+    label: "Extraction Review",
+    description: "Inspect and approve AI-extracted intelligence",
+  },
 ];
 
 export function InvestigationNav({ investigationId }: InvestigationNavProps) {

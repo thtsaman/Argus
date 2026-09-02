@@ -36,33 +36,43 @@ export const evidenceUploadSchema = z.object({
 export const extractionSchema = z.object({
   entities: z.array(
     z.object({
-      type: z.string(),
-      label: z.string(),
-      description: z.string().optional(),
+      name: z.string(),
+      type: z.enum(["PERSON", "LOCATION", "VEHICLE", "PHONE", "ORGANIZATION", "ACCOUNT"]),
+      aliases: z.array(z.string()).optional(),
+      identifiers: z.array(z.string()).optional(),
+      excerpt: z.string().optional(),
     })
-  ),
-  events: z.array(
-    z.object({
-      title: z.string(),
-      description: z.string().optional(),
-      date: z.string().optional(),
-      location: z.string().optional(),
-    })
-  ),
+  ).default([]),
   relationships: z.array(
     z.object({
       source: z.string(),
       target: z.string(),
       type: z.string(),
       confidence: z.number().min(0).max(1).optional(),
+      excerpt: z.string().optional(),
+      explanation: z.string().optional(),
     })
-  ),
+  ).default([]),
+  events: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string().optional(),
+      date: z.string().optional(),
+      location: z.string().optional(),
+      entitiesInvolved: z.array(z.string()).optional(),
+      excerpt: z.string().optional(),
+    })
+  ).default([]),
   locations: z.array(
     z.object({
       name: z.string(),
-      description: z.string().optional(),
+      address: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      country: z.string().optional(),
+      excerpt: z.string().optional(),
     })
-  ),
+  ).default([]),
 });
 
 export type ExtractionResult = z.infer<typeof extractionSchema>;

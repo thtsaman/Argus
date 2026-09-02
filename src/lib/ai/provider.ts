@@ -57,6 +57,132 @@ function wrapEvidenceContent(content: string): string {
   return `${warning}--- BEGIN UNTRUSTED EVIDENCE CONTENT ---\n${content}\n--- END UNTRUSTED EVIDENCE CONTENT ---`;
 }
 
+const EXTRACTION_SYSTEM_PROMPT = `You are ARGUS Intelligence Extraction Engine. Your task is to extract structured intelligence candidates from investigation evidence text.
+
+STRICT INSTRUCTIONS:
+1. Extract ONLY information explicitly present in the provided evidence.
+2. NEVER invent entities, relationships, dates, locations, or facts.
+3. NEVER infer criminal guilt or illegal acts. Use neutral relationship types (OWNS, ASSOCIATED_WITH, COMMUNICATED_WITH, LOCATED_AT, EMPLOYED_BY, PARTICIPATED_IN, TRAVELED_TO, RELATED_TO).
+4. Preserve date and fact uncertainty as written in the text.
+5. Supported entity types are strictly: PERSON, LOCATION, VEHICLE, PHONE, ORGANIZATION, ACCOUNT.
+6. Include exact verbatim text excerpts for every extracted item in the "excerpt" field.
+7. Return ONLY valid JSON adhering strictly to the JSON schema without any markdown commentary outside the JSON block.
+
+JSON Schema format:
+{
+  "entities": [
+    {
+      "name": "full name or label",
+      "type": "PERSON|LOCATION|VEHICLE|PHONE|ORGANIZATION|ACCOUNT",
+      "aliases": ["optional alias"],
+      "identifiers": ["optional identifier"],
+      "excerpt": "exact verbatim text quote"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "source entity name",
+      "target": "target entity name",
+      "type": "OWNS|ASSOCIATED_WITH|COMMUNICATED_WITH|LOCATED_AT|EMPLOYED_BY|PARTICIPATED_IN|TRAVELED_TO|RELATED_TO",
+      "confidence": 0.85,
+      "excerpt": "exact verbatim quote",
+      "explanation": "Why ARGUS identified this relationship based on the document text"
+    }
+  ],
+  "events": [
+    {
+      "title": "event summary",
+      "description": "details",
+      "date": "approximate or exact date as stated",
+      "location": "location if mentioned",
+      "entitiesInvolved": ["entity name"],
+      "excerpt": "verbatim text quote"
+    }
+  ],
+  "locations": [
+    {
+      "name": "place name",
+      "address": "optional address",
+      "city": "optional city",
+      "state": "optional state",
+      "country": "optional country",
+      "excerpt": "verbatim text quote"
+    }
+  ]
+}`;
+
+// Deterministic chunking helper for long evidence text
+function chunkContent(text: string, maxChunkLength = 4000): string[] {
+  if (text.length <= maxChunkLength) return [text];
+
+  const chunks: string[] = [];
+  const paragraphs = text.split(/\n\n+/);
+  let currentChunk = "";
+
+  for (const para of paragraphs) {
+    if ((currentChunk + "\n\n" + para).length > maxChunkLength) {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = para;
+    } else {
+      currentChunk = currentChunk ? `${currentChunk}\n\n${para}` : para;
+    }
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.length > 0 ? chunks : [text.slice(0, maxChunkLength)];
+}
+
+// Conservative deduplication helper
+function deduplicateExtraction(result: ExtractionResult): ExtractionResult {
+  const entityMap = new Map<string, ExtractionResult["entities"][0]>();
+  for (const item of result.entities) {
+    const normKey = `${item.type}:${item.name.trim().toLowerCase().replace(/\s+/g, " ")}`;
+    if (!entityMap.has(normKey)) {
+      entityMap.set(normKey, { ...item, name: item.name.trim() });
+    }
+  }
+
+  const relMap = new Map<string, ExtractionResult["relationships"][0]>();
+  for (const item of result.relationships) {
+    const normKey = `${item.source.trim().toLowerCase()}->${item.target.trim().toLowerCase()}:${item.type}`;
+    if (!relMap.has(normKey)) {
+      relMap.set(normKey, {
+        ...item,
+        source: item.source.trim(),
+        target: item.target.trim(),
+      });
+    }
+  }
+
+  const eventMap = new Map<string, ExtractionResult["events"][0]>();
+  for (const item of result.events) {
+    const normKey = `${item.title.trim().toLowerCase()}:${item.date || ""}`;
+    if (!eventMap.has(normKey)) {
+      eventMap.set(normKey, { ...item, title: item.title.trim() });
+    }
+  }
+
+  const locMap = new Map<string, ExtractionResult["locations"][0]>();
+  for (const item of result.locations) {
+    const normKey = item.name.trim().toLowerCase();
+    if (!locMap.has(normKey)) {
+      locMap.set(normKey, { ...item, name: item.name.trim() });
+    }
+  }
+
+  return {
+    entities: Array.from(entityMap.values()),
+    relationships: Array.from(relMap.values()),
+    events: Array.from(eventMap.values()),
+    locations: Array.from(locMap.values()),
+  };
+}
+
 export async function extractFromText(
   content: string
 ): Promise<{ result: ExtractionResult | null; flags: string[]; error?: string }> {
@@ -65,55 +191,66 @@ export async function extractFromText(
 
   if (!client) {
     return {
-      result: generateFallbackExtraction(content),
+      result: deduplicateExtraction(generateFallbackExtraction(content)),
       flags,
-      error: "Hugging Face API not configured — using rule-based extraction",
+      error: "Hugging Face API key not configured — using rule-based extraction",
     };
   }
 
   try {
-    const prompt = `${SYSTEM_PROMPT}
+    const chunks = chunkContent(content);
+    const combinedResult: ExtractionResult = {
+      entities: [],
+      relationships: [],
+      events: [],
+      locations: [],
+    };
 
-Extract structured information from the evidence. Return ONLY valid JSON matching this schema:
-{
-  "entities": [{"type": "PERSON|ORGANIZATION|PHONE|ACCOUNT|VEHICLE|DEVICE", "label": "name", "description": "optional"}],
-  "events": [{"title": "event name", "description": "optional", "date": "ISO date if found", "location": "optional"}],
-  "relationships": [{"source": "entity label", "target": "entity label", "type": "relationship type", "confidence": 0.0-1.0}],
-  "locations": [{"name": "place name", "description": "optional"}]
-}
+    for (const chunk of chunks) {
+      const prompt = `${EXTRACTION_SYSTEM_PROMPT}\n\n${wrapEvidenceContent(chunk)}`;
 
-${wrapEvidenceContent(content.slice(0, 8000))}`;
+      const response = await client.chatCompletion({
+        model: getModel(),
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 2500,
+        temperature: 0.1,
+      });
 
-    const response = await client.chatCompletion({
-      model: getModel(),
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 2000,
-      temperature: 0.1,
-    });
-
-    const text = response.choices[0]?.message?.content || "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return {
-        result: generateFallbackExtraction(content),
-        flags,
-        error: "Could not parse AI response as JSON",
-      };
+      const text = response.choices[0]?.message?.content || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const rawParsed = JSON.parse(jsonMatch[0]);
+          const parsed = extractionSchema.safeParse(rawParsed);
+          if (parsed.success) {
+            combinedResult.entities.push(...parsed.data.entities);
+            combinedResult.relationships.push(...parsed.data.relationships);
+            combinedResult.events.push(...parsed.data.events);
+            combinedResult.locations.push(...parsed.data.locations);
+          }
+        } catch {
+          // Ignore chunk parse failure and continue
+        }
+      }
     }
 
-    const parsed = extractionSchema.safeParse(JSON.parse(jsonMatch[0]));
-    if (!parsed.success) {
-      return {
-        result: generateFallbackExtraction(content),
-        flags,
-        error: "AI output failed schema validation",
-      };
+    const deduped = deduplicateExtraction(combinedResult);
+    if (
+      deduped.entities.length === 0 &&
+      deduped.relationships.length === 0 &&
+      deduped.events.length === 0 &&
+      deduped.locations.length === 0
+    ) {
+      // Fall back to rule-based parser if AI produced no structured items
+      const fallback = deduplicateExtraction(generateFallbackExtraction(content));
+      return { result: fallback, flags };
     }
 
-    return { result: parsed.data, flags };
+    return { result: deduped, flags };
   } catch (err) {
+    const fallback = deduplicateExtraction(generateFallbackExtraction(content));
     return {
-      result: generateFallbackExtraction(content),
+      result: fallback,
       flags,
       error: err instanceof Error ? err.message : "AI extraction failed",
     };
@@ -168,17 +305,29 @@ function generateFallbackExtraction(content: string): ExtractionResult {
   const namePattern = /(?:Mr\.|Mrs\.|Ms\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/g;
   let match;
   while ((match = namePattern.exec(content)) !== null) {
-    entities.push({ type: "PERSON", label: match[1] });
+    entities.push({
+      name: match[1],
+      type: "PERSON",
+      excerpt: match[0],
+    });
   }
 
   const phonePattern = /\+?\d{10,13}/g;
   while ((match = phonePattern.exec(content)) !== null) {
-    entities.push({ type: "PHONE", label: match[0] });
+    entities.push({
+      name: match[0],
+      type: "PHONE",
+      excerpt: match[0],
+    });
   }
 
   const datePattern = /\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}/g;
   while ((match = datePattern.exec(content)) !== null) {
-    events.push({ title: "Referenced event", date: match[0] });
+    events.push({
+      title: "Referenced date event",
+      date: match[0],
+      excerpt: `Date referenced: ${match[0]}`,
+    });
   }
 
   return { entities, events, relationships, locations };

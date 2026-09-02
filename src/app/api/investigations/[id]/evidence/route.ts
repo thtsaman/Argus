@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/auth/permissions";
 import { createAuditLog } from "@/lib/audit/chain";
 import { extractTextFromFile, detectMimeType } from "@/lib/evidence/parser";
+import { extractFromText } from "@/lib/ai/provider";
 import { APP_CONFIG } from "@/lib/config";
 
 // Sanitizes filename to prevent path traversal & safe storage
@@ -126,7 +127,109 @@ export async function POST(
         // Text extraction & content preparation
         const preparedContent = await extractTextFromFile(buffer, mimeType, safeName);
 
-        // Update evidence item to READY state
+        // GenAI Extraction Step (Batch 11 Pipeline)
+        let extractionFlags: string[] = [];
+        let extractionError: string | undefined = undefined;
+
+        if (preparedContent && preparedContent.trim()) {
+          const { result: extracted, flags, error: aiError } = await extractFromText(preparedContent);
+          extractionFlags = flags;
+          extractionError = aiError;
+
+          if (extracted) {
+            // Save Extracted Entities
+            for (const entity of extracted.entities) {
+              await db.candidateFinding.create({
+                data: {
+                  investigationId: id,
+                  evidenceId: evidenceRecord.id,
+                  type: (entity.type as any) || "ENTITY",
+                  status: "PENDING",
+                  label: entity.name,
+                  description: entity.aliases?.length ? `Aliases: ${entity.aliases.join(", ")}` : null,
+                  sourceExcerpt: entity.excerpt || preparedContent.slice(0, 300),
+                  data: {
+                    type: entity.type,
+                    label: entity.name,
+                    aliases: entity.aliases || [],
+                    identifiers: entity.identifiers || [],
+                    sourceReference: originalFileName,
+                  },
+                },
+              });
+            }
+
+            // Save Extracted Relationships
+            for (const rel of extracted.relationships) {
+              await db.candidateFinding.create({
+                data: {
+                  investigationId: id,
+                  evidenceId: evidenceRecord.id,
+                  type: "RELATIONSHIP",
+                  status: "PENDING",
+                  label: `${rel.source} → ${rel.target}`,
+                  description: rel.explanation || `ARGUS identified this relationship because the source document explicitly states a ${rel.type} link.`,
+                  confidence: rel.confidence ?? 0.85,
+                  sourceExcerpt: rel.excerpt || preparedContent.slice(0, 300),
+                  data: {
+                    source: rel.source,
+                    target: rel.target,
+                    type: rel.type,
+                    explanation: rel.explanation || `Explicitly stated in ${originalFileName}: ${rel.excerpt || rel.type}`,
+                    sourceReference: originalFileName,
+                  },
+                },
+              });
+            }
+
+            // Save Extracted Events
+            for (const evt of extracted.events) {
+              await db.candidateFinding.create({
+                data: {
+                  investigationId: id,
+                  evidenceId: evidenceRecord.id,
+                  type: "EVENT",
+                  status: "PENDING",
+                  label: evt.title,
+                  description: evt.description || null,
+                  sourceExcerpt: evt.excerpt || preparedContent.slice(0, 300),
+                  data: {
+                    title: evt.title,
+                    date: evt.date || null,
+                    location: evt.location || null,
+                    entitiesInvolved: evt.entitiesInvolved || [],
+                    sourceReference: originalFileName,
+                  },
+                },
+              });
+            }
+
+            // Save Extracted Locations
+            for (const loc of extracted.locations) {
+              await db.candidateFinding.create({
+                data: {
+                  investigationId: id,
+                  evidenceId: evidenceRecord.id,
+                  type: "LOCATION",
+                  status: "PENDING",
+                  label: loc.name,
+                  description: [loc.address, loc.city, loc.state, loc.country].filter(Boolean).join(", ") || null,
+                  sourceExcerpt: loc.excerpt || preparedContent.slice(0, 300),
+                  data: {
+                    name: loc.name,
+                    address: loc.address || null,
+                    city: loc.city || null,
+                    state: loc.state || null,
+                    country: loc.country || null,
+                    sourceReference: originalFileName,
+                  },
+                },
+              });
+            }
+          }
+        }
+
+        // Update evidence item to READY / EXTRACTED state
         const updatedRecord = await db.evidenceItem.update({
           where: { id: evidenceRecord.id },
           data: {
@@ -135,6 +238,12 @@ export async function POST(
             normalizedContent: preparedContent,
             status: "EXTRACTED", // Maps to READY state in ingestion workflow
             processedAt: new Date(),
+            metadata: {
+              fileSize: file.size,
+              uploadedBy: user.email,
+              extractionFlags,
+              extractionError: extractionError || null,
+            },
           },
         });
 
