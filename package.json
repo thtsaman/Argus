@@ -15,7 +15,8 @@
     "db:studio": "prisma studio",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "setup": "npm run docker:up && npm run db:push && npm run db:seed"
+    "setup": "npm run docker:up && npm run db:push && npm run db:seed",
+    "hell": "docker compose up -d && npm run dev"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

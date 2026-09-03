@@ -106,14 +106,16 @@ export default function AssistantPage() {
       {contextType && (
         <div className="surface-elevated p-3 rounded-lg border border-accent/40 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono uppercase text-accent font-semibold px-2 py-0.5 border border-accent/30 rounded bg-accent/10">
-              Context Focus: {contextType}
+            <span className="text-xs font-mono uppercase text-accent font-semibold px-2.5 py-1 border border-accent/30 rounded bg-accent/10">
+              Context: {contextLabel || contextId}
             </span>
-            <span className="font-semibold text-foreground">{contextLabel}</span>
+            {contextType !== "ENTITY" && (
+              <span className="text-[10px] text-text-muted font-mono uppercase">({contextType})</span>
+            )}
           </div>
           <a
             href={`/investigations/${id}/assistant`}
-            className="text-[11px] px-2 py-0.5 text-text-muted hover:text-foreground border border-border rounded"
+            className="text-[11px] px-2.5 py-1 text-text-muted hover:text-foreground border border-border rounded hover:bg-background transition-colors"
           >
             Clear Focus
           </a>

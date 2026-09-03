@@ -37,6 +37,7 @@ interface EntityIntelligencePanelProps {
   onSelectConnectedEntity: (entityId: string, label: string) => void;
   onSelectRelationship: (relationship: RelationshipData) => void;
   onFocusGraph?: (entityId: string) => void;
+  onClose?: () => void;
 }
 
 export function EntityIntelligencePanel({
@@ -49,13 +50,14 @@ export function EntityIntelligencePanel({
   onSelectConnectedEntity,
   onSelectRelationship,
   onFocusGraph,
+  onClose,
 }: EntityIntelligencePanelProps) {
   return (
     <motion.div
       key={entity.id}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="surface-elevated p-5 rounded-lg border border-border shadow-sm space-y-5"
+      className="surface-elevated p-5 rounded-lg border border-border shadow-sm space-y-5 relative"
     >
       {/* Breadcrumb / History */}
       {history.length > 1 && (
@@ -89,14 +91,25 @@ export function EntityIntelligencePanel({
           <span className="text-[10px] font-medium tracking-wider uppercase px-2 py-0.5 bg-accent/10 text-accent rounded">
             {entity.type}
           </span>
-          {onFocusGraph && (
-            <button
-              onClick={() => onFocusGraph(entity.id)}
-              className="text-xs px-2 py-1 rounded border border-border hover:border-accent text-text-secondary hover:text-foreground transition-colors"
-            >
-              Focus in Graph
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onFocusGraph && (
+              <button
+                onClick={() => onFocusGraph(entity.id)}
+                className="text-xs px-2 py-1 rounded border border-border hover:border-accent text-text-secondary hover:text-foreground transition-colors"
+              >
+                Focus in Graph
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="text-xs text-text-muted hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
+                title="Deselect entity & close panel"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         <h3 className="font-serif text-xl font-semibold mt-1 text-foreground">{entity.label}</h3>
         {entity.description && (
@@ -117,7 +130,13 @@ export function EntityIntelligencePanel({
           </div>
         )}
 
-        <div className="flex gap-2 mt-3 pt-2 border-t border-border/60">
+        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/60">
+          <a
+            href={`/investigations/${investigationId}/assistant?contextType=ENTITY&contextId=${entity.id}&contextLabel=${encodeURIComponent(entity.label)}`}
+            className="text-xs px-2.5 py-1 rounded bg-accent/10 border border-accent/40 text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1"
+          >
+            ✨ Ask ARGUS
+          </a>
           <a
             href={`/investigations/${investigationId}/timeline?entityId=${entity.id}&entityLabel=${encodeURIComponent(entity.label)}`}
             className="text-xs px-2.5 py-1 rounded border border-border bg-background hover:bg-surface text-text-secondary hover:text-foreground font-medium transition-colors"

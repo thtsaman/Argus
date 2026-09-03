@@ -257,121 +257,175 @@ export async function integrateApprovedCandidate(
         return { success: false, action: "REJECTED", error: "Relationship source or target missing" };
       }
 
-      // Resolve or create source entity
-      let sourceMatch = await findEntityMatch(investigationId, sourceName, EntityType.PERSON, candidateData);
-      if (!sourceMatch.match) {
-        sourceMatch = await findEntityMatch(investigationId, sourceName, EntityType.ORGANIZATION, candidateData);
-      }
-      let sourceEntityId: string;
-      if (sourceMatch.match) {
-        sourceEntityId = sourceMatch.match.id;
-      } else {
-        const createdSource = await db.entity.create({
-          data: {
-            investigationId,
-            type: EntityType.PERSON,
-            label: sourceName,
-            metadata: {
-              extractedFrom: candidate.evidenceId,
-              provenance: {
-                sourceEvidenceId: candidate.evidenceId,
-                approvedAt: new Date().toISOString(),
+      return await db.$transaction(async (tx) => {
+        // Resolve or create source entity
+        let sourceMatch = await findEntityMatch(investigationId, sourceName, EntityType.PERSON, candidateData);
+        if (!sourceMatch.match) {
+          sourceMatch = await findEntityMatch(investigationId, sourceName, EntityType.ORGANIZATION, candidateData);
+        }
+        let sourceEntityId: string;
+        if (sourceMatch.match) {
+          sourceEntityId = sourceMatch.match.id;
+        } else {
+          // Find any pending candidate finding for source entity to maintain linkage if available
+          const pendingSourceCandidate = await tx.candidateFinding.findFirst({
+            where: {
+              investigationId,
+              label: { equals: sourceName, mode: "insensitive" },
+              status: "PENDING",
+            },
+          });
+
+          const createdSource = await tx.entity.create({
+            data: {
+              investigationId,
+              type: EntityType.PERSON,
+              label: sourceName,
+              metadata: {
+                extractedFrom: candidate.evidenceId,
+                promotedViaRelationshipApproval: true,
+                provenance: {
+                  sourceEvidenceId: candidate.evidenceId,
+                  sourceEvidenceTitle: candidate.evidence.title,
+                  extractionCandidateId: candidate.id,
+                  sourceExcerpt: excerpt,
+                  approvedAt: new Date().toISOString(),
+                  approvedByUserId: userId,
+                },
               },
+            },
+          });
+          sourceEntityId = createdSource.id;
+
+          if (pendingSourceCandidate) {
+            await tx.candidateFinding.update({
+              where: { id: pendingSourceCandidate.id },
+              data: {
+                status: "VERIFIED",
+                entityId: createdSource.id,
+                verifiedById: userId,
+                verifiedAt: new Date(),
+              },
+            });
+          }
+        }
+
+        // Resolve or create target entity
+        let targetMatch = await findEntityMatch(investigationId, targetName, EntityType.PERSON, candidateData);
+        if (!targetMatch.match) {
+          targetMatch = await findEntityMatch(investigationId, targetName, EntityType.ORGANIZATION, candidateData);
+        }
+        let targetEntityId: string;
+        if (targetMatch.match) {
+          targetEntityId = targetMatch.match.id;
+        } else {
+          // Find any pending candidate finding for target entity to maintain linkage if available
+          const pendingTargetCandidate = await tx.candidateFinding.findFirst({
+            where: {
+              investigationId,
+              label: { equals: targetName, mode: "insensitive" },
+              status: "PENDING",
+            },
+          });
+
+          const createdTarget = await tx.entity.create({
+            data: {
+              investigationId,
+              type: EntityType.PERSON,
+              label: targetName,
+              metadata: {
+                extractedFrom: candidate.evidenceId,
+                promotedViaRelationshipApproval: true,
+                provenance: {
+                  sourceEvidenceId: candidate.evidenceId,
+                  sourceEvidenceTitle: candidate.evidence.title,
+                  extractionCandidateId: candidate.id,
+                  sourceExcerpt: excerpt,
+                  approvedAt: new Date().toISOString(),
+                  approvedByUserId: userId,
+                },
+              },
+            },
+          });
+          targetEntityId = createdTarget.id;
+
+          if (pendingTargetCandidate) {
+            await tx.candidateFinding.update({
+              where: { id: pendingTargetCandidate.id },
+              data: {
+                status: "VERIFIED",
+                entityId: createdTarget.id,
+                verifiedById: userId,
+                verifiedAt: new Date(),
+              },
+            });
+          }
+        }
+
+        // Prevent duplicate relationship
+        const existingRel = await tx.relationship.findUnique({
+          where: {
+            sourceId_targetId_type: {
+              sourceId: sourceEntityId,
+              targetId: targetEntityId,
+              type: relType,
             },
           },
         });
-        sourceEntityId = createdSource.id;
-      }
 
-      // Resolve or create target entity
-      let targetMatch = await findEntityMatch(investigationId, targetName, EntityType.PERSON, candidateData);
-      if (!targetMatch.match) {
-        targetMatch = await findEntityMatch(investigationId, targetName, EntityType.ORGANIZATION, candidateData);
-      }
-      let targetEntityId: string;
-      if (targetMatch.match) {
-        targetEntityId = targetMatch.match.id;
-      } else {
-        const createdTarget = await db.entity.create({
-          data: {
-            investigationId,
-            type: EntityType.PERSON,
-            label: targetName,
-            metadata: {
-              extractedFrom: candidate.evidenceId,
-              provenance: {
-                sourceEvidenceId: candidate.evidenceId,
-                approvedAt: new Date().toISOString(),
-              },
+        let relId: string;
+        let action: "CREATED" | "MERGED" = "CREATED";
+
+        if (existingRel) {
+          relId = existingRel.id;
+          action = "MERGED";
+          await tx.relationship.update({
+            where: { id: relId },
+            data: {
+              status: RelationshipStatus.VERIFIED,
+              verifiedAt: new Date(),
+            },
+          });
+        } else {
+          const newRel = await tx.relationship.create({
+            data: {
+              investigationId,
+              sourceId: sourceEntityId,
+              targetId: targetEntityId,
+              type: relType,
+              status: RelationshipStatus.VERIFIED,
+              confidence: candidate.confidence || 0.9,
+              description: candidate.description || candidateData.explanation || candidateData.description,
+              verifiedAt: new Date(),
+            },
+          });
+          relId = newRel.id;
+        }
+
+        // Attach evidence provenance link
+        await tx.relationshipEvidence.upsert({
+          where: {
+            relationshipId_evidenceId: {
+              relationshipId: relId,
+              evidenceId: candidate.evidenceId,
             },
           },
-        });
-        targetEntityId = createdTarget.id;
-      }
-
-      // Prevent duplicate relationship
-      const existingRel = await db.relationship.findUnique({
-        where: {
-          sourceId_targetId_type: {
-            sourceId: sourceEntityId,
-            targetId: targetEntityId,
-            type: relType,
-          },
-        },
-      });
-
-      let relId: string;
-      let action: "CREATED" | "MERGED" = "CREATED";
-
-      if (existingRel) {
-        relId = existingRel.id;
-        action = "MERGED";
-        await db.relationship.update({
-          where: { id: relId },
-          data: {
-            status: RelationshipStatus.VERIFIED,
-            verifiedAt: new Date(),
-          },
-        });
-      } else {
-        const newRel = await db.relationship.create({
-          data: {
-            investigationId,
-            sourceId: sourceEntityId,
-            targetId: targetEntityId,
-            type: relType,
-            status: RelationshipStatus.VERIFIED,
-            confidence: candidate.confidence || 0.9,
-            description: candidate.description || candidateData.explanation || candidateData.description,
-            verifiedAt: new Date(),
-          },
-        });
-        relId = newRel.id;
-      }
-
-      // Attach evidence provenance link
-      await db.relationshipEvidence.upsert({
-        where: {
-          relationshipId_evidenceId: {
+          create: {
             relationshipId: relId,
             evidenceId: candidate.evidenceId,
+            excerpt,
           },
-        },
-        create: {
-          relationshipId: relId,
-          evidenceId: candidate.evidenceId,
-          excerpt,
-        },
-        update: {
-          excerpt,
-        },
-      });
+          update: {
+            excerpt,
+          },
+        });
 
-      return {
-        success: true,
-        action,
-        trustedRelationshipId: relId,
-      };
+        return {
+          success: true,
+          action,
+          trustedRelationshipId: relId,
+        };
+      });
     }
 
     // 3. LOCATION CANDIDATES

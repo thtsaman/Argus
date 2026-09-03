@@ -14,6 +14,7 @@ interface EvidenceGraphProps {
   highlightedPath?: string[];
   highlightedNodes?: Set<string>;
   onNodeClick?: (nodeId: string) => void;
+  onBackgroundClick?: () => void;
   width?: number;
   height?: number;
 }
@@ -35,6 +36,7 @@ export function EvidenceGraph({
   highlightedPath = [],
   highlightedNodes,
   onNodeClick,
+  onBackgroundClick,
   width = 800,
   height = 600,
 }: EvidenceGraphProps) {
@@ -174,6 +176,7 @@ export function EvidenceGraph({
         linkWidth={linkWidth}
         linkLineDash={linkLineDash}
         onNodeClick={(node) => onNodeClick?.(node.id as string)}
+        onBackgroundClick={onBackgroundClick}
         cooldownTicks={100}
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}

@@ -39,6 +39,7 @@ export default function ReviewQueuePage() {
 
   // Filter states
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
 
   // Comparison modal state
   const [comparisonData, setComparisonData] = useState<{
@@ -52,33 +53,39 @@ export default function ReviewQueuePage() {
   const loadQueueData = useCallback(async () => {
     try {
       const [candRes, graphRes] = await Promise.all([
-        fetch(`/api/investigations/${id}/candidates`),
+        fetch(`/api/investigations/${id}/candidates?status=${statusFilter}`),
         fetch(`/api/investigations/${id}/graph`),
       ]);
       const candData = await candRes.json();
       const graphData = await graphRes.json();
 
       const allCandidates: Candidate[] = candData.candidates || [];
-      setCandidates(allCandidates.filter((c) => c.status === "PENDING"));
+      setCandidates(allCandidates);
 
-      // Filter graph links that are under review or AI suggested
+      // Filter graph links
       if (graphData.links) {
-        const unverifiedLinks: RelationshipItem[] = graphData.links
-          .filter((l: RelationshipItem) => l.status === "UNDER_REVIEW" || l.status === "AI_SUGGESTED")
+        const links: RelationshipItem[] = graphData.links
+          .filter((l: RelationshipItem) => {
+            if (statusFilter === "ALL") return true;
+            if (statusFilter === "PENDING") return l.status === "UNDER_REVIEW" || l.status === "AI_SUGGESTED";
+            if (statusFilter === "VERIFIED") return l.status === "VERIFIED" || l.status === "DIRECT";
+            if (statusFilter === "REJECTED") return l.status === "REJECTED";
+            return true;
+          })
           .map((l: RelationshipItem) => ({
             ...l,
             source: typeof l.source === "object" ? l.source : { id: l.source, label: l.source },
             target: typeof l.target === "object" ? l.target : { id: l.target, label: l.target },
             evidence: l.evidence || [],
           }));
-        setRelationships(unverifiedLinks);
+        setRelationships(links);
       }
     } catch {
       console.error("Failed to load review queue");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, statusFilter]);
 
   useEffect(() => {
     loadQueueData();
@@ -169,19 +176,40 @@ export default function ReviewQueuePage() {
       )}
 
       {/* Filter Bar */}
-      <div className="surface-elevated p-4 rounded-lg border border-border flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
-            Filter Queue:
-          </span>
-          <div className="flex gap-1">
+      <div className="surface-elevated p-4 rounded-lg border border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
+              Status:
+            </span>
+            {["PENDING", "VERIFIED", "REJECTED", "ALL"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-2.5 py-1 text-xs rounded transition-all ${
+                  statusFilter === s
+                    ? "bg-accent text-surface-elevated font-semibold shadow-2xs"
+                    : "text-text-secondary border border-border hover:text-foreground"
+                }`}
+              >
+                {s === "VERIFIED" ? "APPROVED" : s}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-border hidden sm:block" />
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
+              Type:
+            </span>
             {["ALL", "RELATIONSHIP", "ENTITY", "EVENT", "LOCATION"].map((t) => (
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
                 className={`px-3 py-1 text-xs rounded transition-all ${
                   typeFilter === t
-                    ? "bg-accent text-surface-elevated font-semibold shadow-2xs"
+                    ? "bg-foreground text-background font-semibold shadow-2xs"
                     : "text-text-secondary hover:text-foreground border border-border"
                 }`}
               >
@@ -190,7 +218,7 @@ export default function ReviewQueuePage() {
             ))}
           </div>
         </div>
-        <span className="text-xs text-text-muted font-mono">{totalItems} item(s) pending</span>
+        <span className="text-xs text-text-muted font-mono">{totalItems} item(s) matching filter</span>
       </div>
 
       {totalItems === 0 ? (
@@ -285,6 +313,19 @@ export default function ReviewQueuePage() {
                             <span className="text-[10px] font-mono uppercase px-2 py-0.5 border border-border rounded bg-background">
                               {isConflict ? "EVIDENCE CONFLICT" : c.type}
                             </span>
+                            {c.status === "REJECTED" ? (
+                              <span className="px-2 py-0.5 bg-status-rejected/20 text-status-rejected font-bold text-[10px] rounded uppercase tracking-wider">
+                                REJECTED
+                              </span>
+                            ) : c.status === "VERIFIED" ? (
+                              <span className="px-2 py-0.5 bg-status-verified/20 text-status-verified font-bold text-[10px] rounded uppercase tracking-wider">
+                                APPROVED → TRUSTED
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-accent/20 text-accent font-bold text-[10px] rounded uppercase tracking-wider">
+                                PENDING
+                              </span>
+                            )}
                             <ConfidenceIndicator value={c.confidence} />
                           </div>
                           <h4 className="font-serif text-lg font-semibold text-foreground mt-2">{c.label}</h4>
@@ -304,7 +345,7 @@ export default function ReviewQueuePage() {
                       <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
                         <span className="text-text-muted">From: {c.evidence?.title || "Uploaded Document"}</span>
                         <div className="flex gap-2">
-                          {isConflict && c.evidence && (
+                          {isConflict && c.evidence && c.status === "PENDING" && (
                             <button
                               onClick={() =>
                                 setComparisonData({
@@ -324,20 +365,26 @@ export default function ReviewQueuePage() {
                               Compare Evidence
                             </button>
                           )}
-                          <button
-                            onClick={() => handleCandidateAction(c.id, "verify")}
-                            disabled={processingId === c.id}
-                            className="px-4 py-1.5 bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
-                          >
-                            Verify
-                          </button>
-                          <button
-                            onClick={() => handleCandidateAction(c.id, "reject")}
-                            disabled={processingId === c.id}
-                            className="px-4 py-1.5 border border-border rounded hover:border-border-strong text-text-secondary hover:text-foreground transition-colors disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
+                          {c.status === "PENDING" ? (
+                            <>
+                              <button
+                                onClick={() => handleCandidateAction(c.id, "verify")}
+                                disabled={processingId === c.id}
+                                className="px-4 py-1.5 bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+                              >
+                                Verify
+                              </button>
+                              <button
+                                onClick={() => handleCandidateAction(c.id, "reject")}
+                                disabled={processingId === c.id}
+                                className="px-4 py-1.5 border border-border rounded hover:border-border-strong text-text-secondary hover:text-foreground transition-colors disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-text-muted italic">Decision recorded in audit history</span>
+                          )}
                         </div>
                       </div>
                     </div>

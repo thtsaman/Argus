@@ -175,6 +175,23 @@ export default function EvidenceSpacePage() {
     return undefined;
   }, [focusedRelationshipNodes, selectedNode, relatedRels]);
 
+  const handleDeselectEntity = () => {
+    setSelectedNode(null);
+    setEntityDetail(null);
+    setEntityContext(undefined);
+    setRelatedRels([]);
+    setEntityHistory([]);
+    setSelectedRelationship(null);
+  };
+
+  const handleNodeClick = (nodeId: string) => {
+    if (selectedNode === nodeId) {
+      handleDeselectEntity();
+    } else {
+      loadEntityDetail(nodeId);
+    }
+  };
+
   if (loading)
     return (
       <div className="p-8" suppressHydrationWarning>
@@ -251,7 +268,8 @@ export default function EvidenceSpacePage() {
                 selectedNodeId={selectedNode}
                 highlightedPath={highlightedPath}
                 highlightedNodes={activeHighlightedNodes}
-                onNodeClick={(nodeId) => loadEntityDetail(nodeId)}
+                onNodeClick={handleNodeClick}
+                onBackgroundClick={handleDeselectEntity}
                 height={620}
               />
             )}
@@ -398,6 +416,7 @@ export default function EvidenceSpacePage() {
               onSelectConnectedEntity={handleSelectConnectedEntity}
               onSelectRelationship={(rel) => setSelectedRelationship(rel)}
               onFocusGraph={handleFocusGraphEntity}
+              onClose={handleDeselectEntity}
             />
           ) : (
             <div className="surface p-8 rounded-lg border border-border text-center space-y-2">
