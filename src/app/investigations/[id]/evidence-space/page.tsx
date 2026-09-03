@@ -19,6 +19,7 @@ import { EvidenceViewModal } from "@/components/investigation/EvidenceViewModal"
 import type { GraphData } from "@/lib/graph/analysis";
 import type { RelationshipStatus } from "@prisma/client";
 import { motion } from "framer-motion";
+import { ContextualChatWidget } from "@/components/investigation/ContextualChatWidget";
 
 export default function EvidenceSpacePage() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +32,7 @@ export default function EvidenceSpacePage() {
   const [entityDetail, setEntityDetail] = useState<FullEntityDetail | null>(null);
   const [entityContext, setEntityContext] = useState<EntityContextData | undefined>(undefined);
   const [relatedRels, setRelatedRels] = useState<RelationshipData[]>([]);
+  const [showContextualChat, setShowContextualChat] = useState(false);
 
   // Entity navigation history/breadcrumbs
   const [entityHistory, setEntityHistory] = useState<HistoryItem[]>([]);
@@ -417,6 +419,7 @@ export default function EvidenceSpacePage() {
               onSelectRelationship={(rel) => setSelectedRelationship(rel)}
               onFocusGraph={handleFocusGraphEntity}
               onClose={handleDeselectEntity}
+              onAskArgus={() => setShowContextualChat(true)}
             />
           ) : (
             <div className="surface p-8 rounded-lg border border-border text-center space-y-2">
@@ -429,6 +432,17 @@ export default function EvidenceSpacePage() {
           )}
         </div>
       </div>
+
+      {/* Contextual Copilot Chat Widget */}
+      {showContextualChat && entityDetail && (
+        <ContextualChatWidget
+          investigationId={id}
+          contextType="ENTITY"
+          contextId={entityDetail.id}
+          contextLabel={entityDetail.label}
+          onClose={() => setShowContextualChat(false)}
+        />
+      )}
 
       {/* Supporting Evidence Modal */}
       {evidenceModalRelationship && (

@@ -38,6 +38,7 @@ interface EntityIntelligencePanelProps {
   onSelectRelationship: (relationship: RelationshipData) => void;
   onFocusGraph?: (entityId: string) => void;
   onClose?: () => void;
+  onAskArgus?: () => void;
 }
 
 export function EntityIntelligencePanel({
@@ -51,6 +52,7 @@ export function EntityIntelligencePanel({
   onSelectRelationship,
   onFocusGraph,
   onClose,
+  onAskArgus,
 }: EntityIntelligencePanelProps) {
   return (
     <motion.div
@@ -131,12 +133,18 @@ export function EntityIntelligencePanel({
         )}
 
         <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/60">
-          <a
-            href={`/investigations/${investigationId}/assistant?contextType=ENTITY&contextId=${entity.id}&contextLabel=${encodeURIComponent(entity.label)}`}
-            className="text-xs px-2.5 py-1 rounded bg-accent/10 border border-accent/40 text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1"
+          <button
+            onClick={() => {
+              if (onAskArgus) {
+                onAskArgus();
+              } else {
+                window.location.href = `/investigations/${investigationId}/assistant?contextType=ENTITY&contextId=${entity.id}&contextLabel=${encodeURIComponent(entity.label)}`;
+              }
+            }}
+            className="text-xs px-2.5 py-1 rounded bg-accent/10 border border-accent/40 text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1 cursor-pointer"
           >
             ✨ Ask ARGUS
-          </a>
+          </button>
           <a
             href={`/investigations/${investigationId}/timeline?entityId=${entity.id}&entityLabel=${encodeURIComponent(entity.label)}`}
             className="text-xs px-2.5 py-1 rounded border border-border bg-background hover:bg-surface text-text-secondary hover:text-foreground font-medium transition-colors"

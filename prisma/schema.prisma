@@ -117,6 +117,7 @@ model User {
   auditLogs      AuditLog[]
   aiInsights     AIInsight[]
   verifiedCandidates CandidateFinding[] @relation("VerifiedBy")
+  conversations  Conversation[]
 }
 
 model Investigation {
@@ -139,6 +140,7 @@ model Investigation {
   relationships Relationship[]
   aiInsights  AIInsight[]
   candidates  CandidateFinding[]
+  conversations Conversation[]
 }
 
 model Entity {
@@ -322,6 +324,39 @@ model AIInsight {
   createdAt       DateTime @default(now())
 
   @@index([investigationId])
+}
+
+model Conversation {
+  id              String        @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  contextType     String?
+  contextId       String?
+  contextLabel    String?
+  title           String
+  summary         Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  messages ChatMessage[]
+
+  @@index([investigationId])
+  @@index([contextType, contextId])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  error          String?
+  sources        Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
 }
 
 model AuditLog {
