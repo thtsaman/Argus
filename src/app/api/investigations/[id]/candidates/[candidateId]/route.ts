@@ -25,6 +25,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
     }
 
+    const wasPreviouslyRejected = candidate.status === "REJECTED";
+
     if (parsed.data.action === "reject") {
       await db.candidateFinding.update({
         where: { id: candidateId },
@@ -35,6 +37,10 @@ export async function PATCH(
         action: "CANDIDATE_REJECTED",
         resourceType: "CandidateFinding",
         resourceId: candidateId,
+        metadata: {
+          previousStatus: candidate.status,
+          reconsidered: wasPreviouslyRejected,
+        },
       });
       return NextResponse.json({ status: "rejected" });
     }
@@ -64,6 +70,8 @@ export async function PATCH(
         integrationAction: result.action,
         trustedEntityId: result.trustedEntityId,
         trustedRelationshipId: result.trustedRelationshipId,
+        previousStatus: candidate.status,
+        reconsidered: wasPreviouslyRejected,
       },
     });
 

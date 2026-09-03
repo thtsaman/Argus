@@ -50,6 +50,13 @@ export default function ReviewQueuePage() {
     candidateId?: string;
   } | null>(null);
 
+  // Reconsider modal state
+  const [reconsiderItem, setReconsiderItem] = useState<{
+    id: string;
+    label: string;
+    kind: "candidate" | "relationship";
+  } | null>(null);
+
   const loadQueueData = useCallback(async () => {
     try {
       const [candRes, graphRes] = await Promise.all([
@@ -270,20 +277,35 @@ export default function ReviewQueuePage() {
                     <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
                       <span className="text-text-muted">{r.evidence?.length || 0} supporting evidence record(s)</span>
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => handleRelationshipAction(r.id, "verify")}
-                          disabled={processingId === r.id}
-                          className="px-4 py-1.5 bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
-                        >
-                          Verify
-                        </button>
-                        <button
-                          onClick={() => handleRelationshipAction(r.id, "reject")}
-                          disabled={processingId === r.id}
-                          className="px-4 py-1.5 border border-border rounded hover:border-border-strong text-text-secondary hover:text-foreground transition-colors disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
+                        {r.status === "REJECTED" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-text-muted italic text-[11px]">Previously Rejected</span>
+                            <button
+                              onClick={() => setReconsiderItem({ id: r.id, label: `${r.source.label} → ${r.target.label}`, kind: "relationship" })}
+                              disabled={processingId === r.id}
+                              className="px-3 py-1 bg-accent/10 border border-accent/40 text-accent rounded font-medium hover:bg-accent/20 transition-colors"
+                            >
+                              Reconsider
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleRelationshipAction(r.id, "verify")}
+                              disabled={processingId === r.id}
+                              className="px-4 py-1.5 bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+                            >
+                              Verify
+                            </button>
+                            <button
+                              onClick={() => handleRelationshipAction(r.id, "reject")}
+                              disabled={processingId === r.id}
+                              className="px-4 py-1.5 border border-border rounded hover:border-border-strong text-text-secondary hover:text-foreground transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -382,6 +404,17 @@ export default function ReviewQueuePage() {
                                 Reject
                               </button>
                             </>
+                          ) : c.status === "REJECTED" ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-muted italic text-[11px]">Previously Rejected</span>
+                              <button
+                                onClick={() => setReconsiderItem({ id: c.id, label: c.label, kind: "candidate" })}
+                                disabled={processingId === c.id}
+                                className="px-3 py-1 bg-accent/10 border border-accent/40 text-accent rounded font-medium hover:bg-accent/20 transition-colors"
+                              >
+                                Reconsider
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-text-muted italic">Decision recorded in audit history</span>
                           )}
@@ -410,6 +443,48 @@ export default function ReviewQueuePage() {
             }
           }}
         />
+      )}
+
+      {/* Reconsider Modal */}
+      {reconsiderItem && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="surface-elevated p-6 rounded-lg border border-accent/40 max-w-md w-full space-y-4 shadow-xl">
+            <h4 className="font-serif font-semibold text-sm text-foreground">
+              Reconsider Decision: {reconsiderItem.label}
+            </h4>
+            <p className="text-xs text-text-muted leading-relaxed">
+              This item was previously rejected. Choose whether to approve and integrate it into the trusted investigation graph or keep it rejected.
+            </p>
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <button
+                onClick={() => {
+                  if (reconsiderItem.kind === "candidate") {
+                    handleCandidateAction(reconsiderItem.id, "reject");
+                  } else {
+                    handleRelationshipAction(reconsiderItem.id, "reject");
+                  }
+                  setReconsiderItem(null);
+                }}
+                className="px-3 py-1.5 text-xs border border-border rounded hover:bg-background transition-colors text-text-secondary"
+              >
+                Keep Rejected
+              </button>
+              <button
+                onClick={() => {
+                  if (reconsiderItem.kind === "candidate") {
+                    handleCandidateAction(reconsiderItem.id, "verify");
+                  } else {
+                    handleRelationshipAction(reconsiderItem.id, "verify");
+                  }
+                  setReconsiderItem(null);
+                }}
+                className="px-4 py-1.5 text-xs bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors"
+              >
+                Approve & Integrate
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
