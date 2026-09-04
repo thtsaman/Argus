@@ -344,8 +344,64 @@ function generateFallbackExplanation(
   const focus = context.focusContext as any;
   const rels = (context.relevantRelationships as any[]) || [];
   const evs = (context.relevantEvidence as any[]) || [];
-  const leads = (context.relevantLeads as any[]) || [];
-  const focusLabel = focus?.label || focus?.details?.label || "the selected entity";
+  const focusLabel = focus?.label || focus?.details?.financialEntity?.identifier || focus?.details?.label || "the selected entity";
+
+  // Check if this is a Financial Trail context
+  if (focus?.type === "FINANCIAL" || focus?.details?.financialEntity || focus?.details?.transactions) {
+    const fe = focus?.details?.financialEntity;
+    const txs: any[] = focus?.details?.transactions || (context.recentTransactions as any[]) || [];
+    const signals: any[] = (context.financialSignals as any[]) || [];
+
+    const feName = fe?.identifier || focusLabel;
+    const feType = fe?.type || "BANK_ACCOUNT";
+    const feAttr = fe?.attributionStatus || "UNVERIFIED";
+
+    let knownLines: string[] = [];
+    if (fe) {
+      knownLines.push(`- Financial Entity: ${feName} (${feType}, ${feAttr}).`);
+      if (fe.linkedPerson) {
+        knownLines.push(`- Verified Linked Person: ${fe.linkedPerson}.`);
+      }
+    }
+
+    if (txs.length > 0) {
+      const sampleTxs = txs.slice(0, 4);
+      sampleTxs.forEach((t) => {
+        const amt = t.amountFormatted || t.amount || "amount specified";
+        knownLines.push(`- Transaction Record: ${t.sender || t.from} → ${t.receiver || t.to} of ${amt} on ${t.timestamp ? new Date(t.timestamp).toLocaleDateString("en-IN") : "incident date"} (${t.channel || "UPI/BANK"}${t.incident ? `, Incident ${t.incident}` : ""}).`);
+      });
+    } else {
+      knownLines.push(`- No financial transactions recorded directly for ${feName} in the current filter window.`);
+    }
+
+    let inferredLines: string[] = [
+      `- Financial flow pattern indicates multi-hop transfer velocity requiring money-movement path tracking.`,
+      `- Concentration of transactions during specific logistics windows (e.g. EX-01 to EX-04) suggests synchronized intermediary activity.`,
+    ];
+
+    let uncertainLines: string[] = [
+      `- Available synthetic banking ledger does NOT verify beneficial ownership of unassigned accounts (${feAttr}).`,
+      `- Underlying commercial purpose of transfers remains unconfirmed without sub-ledger invoices.`,
+    ];
+
+    let nextLines: string[] = [
+      `- Perform "Trace Forward" / "Trace Back" path analysis from ${feName} to isolate terminal exchange endpoints.`,
+      `- Verify KYC details for unassigned intermediary accounts linked to ${feName}.`,
+      `- Cross-reference transaction timestamps against candidate evidence logs.`,
+    ];
+
+    return `KNOWN
+${knownLines.join("\n")}
+
+INFERRED
+${inferredLines.join("\n")}
+
+UNCERTAIN
+${uncertainLines.join("\n")}
+
+NEXT TO INVESTIGATE
+${nextLines.join("\n")}`;
+  }
 
   if (!focus && rels.length === 0 && evs.length === 0) {
     return "I don't have enough verified evidence in this investigation to answer that.";

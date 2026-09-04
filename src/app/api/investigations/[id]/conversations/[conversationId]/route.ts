@@ -182,6 +182,80 @@ export async function POST(
           excerpt: e.evidence.normalizedContent?.slice(0, 1000),
         }));
       }
+    } else if (focusType === "FINANCIAL") {
+      // Primary Financial Context branch: fetch authoritative financial entity & transactions from DB
+      const targetFe = focusId && focusId !== id
+        ? await db.financialEntity.findFirst({
+            where: { investigationId: id, OR: [{ id: focusId }, { identifier: focusId }, { linkedEntityId: focusId }] },
+            include: { linkedEntity: { select: { id: true, label: true, type: true } } },
+          })
+        : null;
+
+      let feTransactions: any[] = [];
+      if (targetFe) {
+        feTransactions = await db.transaction.findMany({
+          where: {
+            investigationId: id,
+            OR: [{ senderFinancialEntityId: targetFe.id }, { receiverFinancialEntityId: targetFe.id }],
+          },
+          include: {
+            sender: { select: { identifier: true, type: true } },
+            receiver: { select: { identifier: true, type: true } },
+            sourceEvidence: { select: { title: true, normalizedContent: true } },
+          },
+          orderBy: { timestamp: "asc" },
+        });
+
+        focusDetails = {
+          financialEntity: {
+            id: targetFe.id,
+            identifier: targetFe.identifier,
+            type: targetFe.type,
+            attributionStatus: targetFe.attributionStatus,
+            linkedPerson: targetFe.linkedEntity?.label || null,
+          },
+          transactionCount: feTransactions.length,
+          incomingCount: feTransactions.filter((t) => t.receiverFinancialEntityId === targetFe.id).length,
+          outgoingCount: feTransactions.filter((t) => t.senderFinancialEntityId === targetFe.id).length,
+          transactions: feTransactions.map((t) => ({
+            id: t.id,
+            sender: t.sender.identifier,
+            receiver: t.receiver.identifier,
+            amountFormatted: `₹${(Number(t.amount) / 100000).toFixed(2)} Lakhs (₹${t.amount})`,
+            timestamp: t.timestamp.toISOString(),
+            incident: t.incident,
+            channel: t.channel,
+            purpose: t.purpose,
+            evidenceSource: t.sourceEvidence?.title || null,
+          })),
+        };
+      } else {
+        // Broad financial overview
+        feTransactions = await db.transaction.findMany({
+          where: { investigationId: id },
+          take: 30,
+          include: {
+            sender: { select: { identifier: true, type: true } },
+            receiver: { select: { identifier: true, type: true } },
+            sourceEvidence: { select: { title: true } },
+          },
+          orderBy: { timestamp: "desc" },
+        });
+
+        focusDetails = {
+          overview: "All Financial Activity for Investigation",
+          transactionCount: feTransactions.length,
+          transactions: feTransactions.map((t) => ({
+            id: t.id,
+            sender: t.sender.identifier,
+            receiver: t.receiver.identifier,
+            amountFormatted: `₹${(Number(t.amount) / 100000).toFixed(2)} Lakhs`,
+            timestamp: t.timestamp.toISOString(),
+            incident: t.incident,
+            channel: t.channel,
+          })),
+        };
+      }
     } else {
       // General overview or fallback: grab top items
       const [entities, relationships, evidence, events] = await Promise.all([
