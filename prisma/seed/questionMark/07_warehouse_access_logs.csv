@@ -1,0 +1,8 @@
+Date,Time,Person,Location,Access Type,Incident,Note
+2026-02-12,17:48,Rahul Verma,"SecurePrint Dispatch Floor, Durgapur",Authorized access,EX-01,Routine production access according to roster.
+2026-02-13,18:05,Aakash Roy,"SecurePrint Dispatch Floor, Durgapur",Dispatch access,EX-01,Access coincides with shipment SP-260213-04.
+2026-04-20,16:32,Rahul Verma,"SecurePrint Dispatch Floor, Durgapur",Authorized access,EX-02,Access recorded during dispatch preparation.
+2026-07-08,15:58,Aakash Roy,"SecurePrint Dispatch Floor, Durgapur",Dispatch access,EX-03,Access recorded before OD05EF7788 departure.
+2026-08-17,14:41,Rahul Verma,"SecurePrint Dispatch Floor, Durgapur",Authorized access,EX-04,Access recorded during EX-04 dispatch preparation.
+2026-08-17,14:55,Imran Ali,"SecurePrint Visitor Area, Durgapur",Visitor access,EX-04,Vendor visit; reason listed as printer maintenance.
+2026-08-17,15:03,Aakash Roy,"SecurePrint Dispatch Floor, Durgapur",Dispatch access,EX-04,Access follows vendor visit by eight minutes.

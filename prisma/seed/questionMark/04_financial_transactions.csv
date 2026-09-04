@@ -1,0 +1,6 @@
+Date,From Account,To Account,Amount,Reference,Related Incident,Verification
+2026-02-10,ACC-1042,ACC-2098,85000,Training consultancy,EX-01,"Payment confirmed; purpose recorded by sender, recipient ownership not independently verified."
+2026-04-18,ACC-1042,ACC-2098,62000,Consulting services,EX-02,Payment confirmed; recipient account association requires verification.
+2026-07-06,ACC-3181,ACC-4420,41000,Vehicle logistics,EX-03,Payment confirmed; business purpose documented.
+2026-08-15,ACC-1042,ACC-2098,73000,Consulting services,EX-04,Payment confirmed; recipient account association requires verification.
+2026-08-16,ACC-3181,ACC-4420,18000,Route advance,EX-04,Payment confirmed; transaction appears consistent with transport activity.

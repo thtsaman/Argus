@@ -1,0 +1,11 @@
+Date,Time,From,To,Phone,Duration,Incident,Note
+2026-02-13,10:14,Arjun Mehta,Vikram Sethi,+91-90000-11001,08:12,EX-01,Communication one day before EX-01; purpose not recorded.
+2026-02-14,07:42,Vikram Sethi,Neha Sharma,+91-90000-11002,03:41,EX-01,Communication on the morning the leak was reported.
+2026-04-21,18:26,Arjun Mehta,Vikram Sethi,+91-90000-11001,05:22,EX-02,Communication one day before EX-02.
+2026-04-22,08:17,Vikram Sethi,Neha Sharma,+91-90000-11002,04:17,EX-02,Communication on the morning the leak was reported.
+2026-07-08,16:48,Karan Das,Neha Sharma,+91-90000-11003,06:03,EX-03,Communication on the evening before EX-03.
+2026-07-09,07:31,Neha Sharma,Vikram Sethi,+91-90000-11004,02:55,EX-03,Communication before the examination.
+2026-08-17,19:12,Rahul Verma,Arjun Mehta,+91-90000-11005,04:36,EX-04,Communication one day before EX-04.
+2026-08-18,06:54,Arjun Mehta,Vikram Sethi,+91-90000-11001,03:08,EX-04,Communication on the morning the leak was reported.
+2026-08-18,09:22,Sana Khan,Arjun Mehta,+91-90000-11006,02:11,EX-04,Routine operational call recorded in the same period.
+2026-08-18,11:04,Karan Das,Nitin Das,+91-90000-11007,01:48,EX-04,Vehicle scheduling call; purpose appears logistical.

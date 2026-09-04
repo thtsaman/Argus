@@ -1,0 +1,7 @@
+Date,Time,Vehicle,Location,Purpose,Incident,Source
+2026-02-13,18:40,WB12AB1234,Durgapur,Dispatch route,EX-01,Vehicle movement register
+2026-02-13,22:15,WB12AB1234,Kolkata,Examination warehouse arrival,EX-01,Vehicle movement register
+2026-04-21,20:15,WB12AB1234,Patna,Regional depot route,EX-02,Vehicle movement register
+2026-07-08,17:50,OD05EF7788,Bhubaneswar,Regional depot route,EX-03,Vehicle movement register
+2026-08-17,15:20,WB08XY7742,Asansol,Examination centre delivery,EX-04,Vehicle movement register
+2026-08-17,21:10,WB08XY7742,Kolkata,Return to warehouse corridor,EX-04,Vehicle movement register
