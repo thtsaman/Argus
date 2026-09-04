@@ -68,61 +68,192 @@ export async function POST(
       },
     });
 
-    // Gather context based on investigation & focusContext
-    const focusContext = conversation.contextType
-      ? {
-          type: conversation.contextType,
-          id: conversation.contextId,
-          label: conversation.contextLabel,
-        }
-      : null;
+    // Gather targeted context based on focusContext type
+    let focusDetails: any = null;
+    let relevantEntities: any[] = [];
+    let relevantRelationships: any[] = [];
+    let relevantEvidence: any[] = [];
+    let relevantEvents: any[] = [];
+    let relevantLeads: any[] = [];
 
-    const [entities, relationships, evidence, events] = await Promise.all([
-      db.entity.findMany({
-        where: { investigationId: id },
-        take: 50,
-        select: { id: true, label: true, type: true, description: true },
-      }),
-      db.relationship.findMany({
-        where: { investigationId: id },
-        take: 50,
+    const focusType = conversation.contextType;
+    const focusId = conversation.contextId;
+
+    if (focusType === "ENTITY" && focusId) {
+      const entity = await db.entity.findUnique({
+        where: { id: focusId },
         include: {
-          source: { select: { label: true } },
-          target: { select: { label: true } },
-          evidence: { include: { evidence: { select: { title: true } } }, take: 2 },
+          sourceRelations: {
+            include: {
+              target: { select: { id: true, label: true, type: true } },
+              evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+            },
+          },
+          targetRelations: {
+            include: {
+              source: { select: { id: true, label: true, type: true } },
+              evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+            },
+          },
         },
-      }),
-      db.evidenceItem.findMany({
-        where: { investigationId: id },
-        take: 10,
-        select: { title: true, normalizedContent: true, status: true },
-      }),
-      db.event.findMany({
-        where: { investigationId: id },
-        take: 20,
-        orderBy: { occurredAt: "desc" },
-        select: { title: true, occurredAt: true },
-      }),
-    ]);
+      });
 
-    const context = {
-      focusContext,
-      entities: entities.map((e) => ({ label: e.label, type: e.type })),
-      relationships: relationships.map((r) => ({
+      if (entity) {
+        focusDetails = {
+          id: entity.id,
+          label: entity.label,
+          type: entity.type,
+          description: entity.description,
+        };
+
+        const allRels = [...(entity.sourceRelations || []), ...(entity.targetRelations || [])];
+        relevantRelationships = allRels.map((r: any) => {
+          const isSource = r.sourceId === entity.id;
+          const other = isSource ? r.target : r.source;
+          return {
+            id: r.id,
+            connectedEntity: other.label,
+            direction: isSource ? `-> ${other.label}` : `<- ${other.label}`,
+            type: r.type,
+            status: r.status,
+            confidence: r.confidence,
+            evidenceExcerpts: r.evidence.map((e: any) => ({
+              title: e.evidence.title,
+              excerpt: e.evidence.normalizedContent?.slice(0, 500),
+            })),
+          };
+        });
+
+        // Find leads involving this entity
+        const leads = await db.relationship.findMany({
+          where: {
+            investigationId: id,
+            OR: [{ sourceId: entity.id }, { targetId: entity.id }],
+            status: "UNDER_REVIEW",
+          },
+          include: {
+            source: { select: { label: true } },
+            target: { select: { label: true } },
+            evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+          },
+        });
+
+        relevantLeads = leads.map((l: any) => ({
+          title: `Unverified link: ${l.source.label} -> ${l.target.label}`,
+          status: l.status,
+          type: l.type,
+          evidence: l.evidence.map((e: any) => ({
+            title: e.evidence.title,
+            excerpt: e.evidence.normalizedContent?.slice(0, 500),
+          })),
+        }));
+      }
+    } else if (focusType === "RELATIONSHIP" && focusId) {
+      const rel = await db.relationship.findUnique({
+        where: { id: focusId },
+        include: {
+          source: { select: { id: true, label: true, type: true, description: true } },
+          target: { select: { id: true, label: true, type: true, description: true } },
+          evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+        },
+      });
+
+      if (rel) {
+        focusDetails = {
+          id: rel.id,
+          type: rel.type,
+          status: rel.status,
+          confidence: rel.confidence,
+          sourceEntity: rel.source,
+          targetEntity: rel.target,
+        };
+
+        relevantRelationships = [
+          {
+            source: rel.source.label,
+            target: rel.target.label,
+            type: rel.type,
+            status: rel.status,
+          },
+        ];
+
+        relevantEvidence = rel.evidence.map((e: any) => ({
+          title: e.evidence.title,
+          excerpt: e.evidence.normalizedContent?.slice(0, 1000),
+        }));
+      }
+    } else {
+      // General overview or fallback: grab top items
+      const [entities, relationships, evidence, events] = await Promise.all([
+        db.entity.findMany({
+          where: { investigationId: id },
+          take: 20,
+          select: { id: true, label: true, type: true, description: true },
+        }),
+        db.relationship.findMany({
+          where: { investigationId: id },
+          take: 20,
+          include: {
+            source: { select: { label: true } },
+            target: { select: { label: true } },
+            evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } }, take: 2 },
+          },
+        }),
+        db.evidenceItem.findMany({
+          where: { investigationId: id },
+          take: 5,
+          select: { title: true, normalizedContent: true, status: true },
+        }),
+        db.event.findMany({
+          where: { investigationId: id },
+          take: 10,
+          orderBy: { occurredAt: "desc" },
+          select: { title: true, occurredAt: true },
+        }),
+      ]);
+
+      relevantEntities = entities;
+      relevantRelationships = relationships.map((r: any) => ({
         source: r.source.label,
         target: r.target.label,
         status: r.status,
         type: r.type,
-        evidence: r.evidence.map((e) => e.evidence.title),
-      })),
-      evidence: evidence.map((e) => ({
+        evidence: r.evidence.map((e: any) => ({
+          title: e.evidence.title,
+          excerpt: e.evidence.normalizedContent?.slice(0, 500),
+        })),
+      }));
+      relevantEvidence = evidence.map((e) => ({
         title: e.title,
-        excerpt: e.normalizedContent?.slice(0, 300),
-      })),
-      recentEvents: events.map((e) => ({
+        excerpt: e.normalizedContent?.slice(0, 500),
+      }));
+      relevantEvents = events.map((e) => ({
         title: e.title,
         date: e.occurredAt.toISOString(),
-      })),
+      }));
+    }
+
+    // Always fetch overarching investigation title & description
+    const investigation = await db.investigation.findUnique({
+      where: { id },
+      select: { title: true, description: true, caseNumber: true },
+    });
+
+    const context = {
+      investigation,
+      focusContext: conversation.contextType
+        ? {
+            type: conversation.contextType,
+            id: conversation.contextId,
+            label: conversation.contextLabel,
+            details: focusDetails,
+          }
+        : null,
+      relevantEntities,
+      relevantRelationships,
+      relevantEvidence,
+      relevantEvents,
+      relevantLeads,
     };
 
     const { response, error } = await generateExplanation({

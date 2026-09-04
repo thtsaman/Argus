@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { InvestigationLead } from "@/lib/investigation/leads";
 import { LeadCard } from "./LeadCard";
@@ -16,8 +16,15 @@ export function LeadsOverviewSection({ leads: initialLeads, investigationId }: L
   const router = useRouter();
   const [leads, setLeads] = useState<InvestigationLead[]>(initialLeads);
   const [activeLead, setActiveLead] = useState<InvestigationLead | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const activeCount = leads.filter((l) => l.status === "NEW" || l.status === "INVESTIGATING").length;
+
+  useEffect(() => {
+    if (activeLead && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [activeLead]);
 
   const handleStatusChange = (leadId: string, newStatus: InvestigationLead["status"]) => {
     setLeads((prev) =>
@@ -70,7 +77,7 @@ export function LeadsOverviewSection({ leads: initialLeads, investigationId }: L
       </div>
 
       {activeLead && (
-        <div className="pt-4 border-t border-border">
+        <div ref={detailRef} className="pt-4 border-t border-border animate-in fade-in slide-in-from-top-2 duration-200">
           <LeadDetail
             lead={activeLead}
             investigationId={investigationId}

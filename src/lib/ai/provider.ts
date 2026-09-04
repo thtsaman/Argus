@@ -32,21 +32,22 @@ function getModel(): string {
 
 const SYSTEM_PROMPT = `You are ARGUS Assistant, an evidence-grounded investigation analysis copilot. Your sole role is to assist analysts in examining investigation evidence, entities, relationships, leads, and events.
 
-STRICT RULES:
-1. Ground every answer ONLY in the provided investigation context. Never invent facts, entities, relationships, or evidence.
-2. If the investigation data does NOT contain enough verified evidence to answer, respond strictly: "I don't have enough verified evidence in this investigation to answer that."
-3. Format all responses using strict Fact / Inference separation using these three exact section titles:
+STRICT GROUNDING & EXPLANATION RULES:
+1. Ground every answer ONLY in the provided investigation context. Never invent facts, entities, relationships, or evidence excerpts.
+2. When asked why a relationship or lead was flagged/surfaced, locate the "explanation", "reason", or supporting "evidenceExcerpts" in the context.
+3. If the investigation data does NOT contain enough verified evidence or rationale to answer a specific question, state clearly what evidence exists and explicitly state what is missing or uncertain. If no relevant evidence exists at all, respond strictly: "I don't have enough verified evidence in this investigation to answer that."
+4. Format all responses using strict Fact / Inference separation using these three exact section titles:
 
 KNOWN
-[State direct facts explicitly supported by verified evidence records and direct relationships.]
+[State direct facts explicitly supported by verified evidence records, source excerpts, and direct relationships.]
 
 INFERRED
-[State relationships or conclusions marked as AI-suggested, inferred, or candidate findings.]
+[State relationships or conclusions marked as AI-suggested, inferred, or candidate findings. Explain WHY they were flagged using the evidence excerpts or explanation metadata when present.]
 
 UNCERTAIN
-[State unverified links, evidence gaps, or items requiring investigator decision/review.]
+[State unverified links, evidence gaps, or items requiring investigator decision/review. Explicitly state what the available evidence does NOT establish.]
 
-4. Never use accusatory terms (e.g. "suspect", "guilty", "fraudster"). Use neutral investigative terms ("potential connection", "observed activity", "unverified link").`;
+5. Never use accusatory terms (e.g. "suspect", "guilty", "fraudster"). Use neutral investigative terms ("potential connection", "observed activity", "unverified link").`;
 
 function wrapEvidenceContent(content: string): string {
   const flags = detectSuspiciousContent(content);
@@ -337,28 +338,43 @@ function generateFallbackExplanation(
   query: string,
   context: Record<string, unknown>
 ): string {
-  const entities = (context.entities as { label: string; type: string }[]) || [];
-  const relationships =
-    (context.relationships as { source: string; target: string; status: string; type?: string; evidence?: string[] }[]) || [];
-  const activeFocus = context.focusContext as { type?: string; label?: string } | undefined;
+  const focus = context.focusContext as any;
+  const rels = (context.relevantRelationships as any[]) || [];
+  const evs = (context.relevantEvidence as any[]) || [];
+  const leads = (context.relevantLeads as any[]) || [];
 
-  const verifiedRels = relationships.filter((r) => r.status === "VERIFIED" || r.status === "DIRECT");
-  const inferredRels = relationships.filter((r) => r.status === "AI_SUGGESTED" || r.status === "UNDER_REVIEW");
-
-  if (entities.length === 0 && relationships.length === 0) {
+  if (!focus && rels.length === 0 && evs.length === 0) {
     return "I don't have enough verified evidence in this investigation to answer that.";
   }
 
-  const focusLabel = activeFocus?.label ? ` focusing on ${activeFocus.label}` : "";
+  const verified = rels.filter((r) => r.status === "VERIFIED" || r.status === "DIRECT");
+  const inferred = rels.filter((r) => r.status === "AI_SUGGESTED" || r.status === "UNDER_REVIEW");
+
+  const focusLabel = focus?.label ? ` focusing on ${focus.label}` : "";
+
+  let knownText = verified.length > 0
+    ? verified.slice(0, 3).map((r) => `- ${r.source || focus?.label} → ${r.target || r.connectedEntity} (${r.type || "ASSOCIATED_WITH"})`).join("\n")
+    : `- Retrieved investigation context${focusLabel}.`;
+
+  if (evs.length > 0 && evs[0].excerpt) {
+    knownText += `\n- Evidence excerpt (${evs[0].title || "Record"}): "${evs[0].excerpt.slice(0, 200)}..."`;
+  }
+
+  let inferredText = inferred.length > 0
+    ? inferred.slice(0, 3).map((r) => `- Flagged relationship: ${r.source || focus?.label} → ${r.target || r.connectedEntity} (${r.status}). ${r.explanation ? `Reason: ${r.explanation}` : ""}`).join("\n")
+    : `- No additional inferred links flagged in this focus scope.`;
+
+  if (leads.length > 0) {
+    inferredText += `\n- Surfaced Lead: ${leads[0].title}. ${leads[0].explanation ? `Rationale: ${leads[0].explanation}` : ""}`;
+  }
 
   return `KNOWN
-- Retrieved ${entities.length} entities and ${verifiedRels.length} verified/direct relationship records${focusLabel}.
-${verifiedRels.slice(0, 3).map((r) => `- Direct connection: ${r.source} → ${r.target} (${r.type || "ASSOCIATED_WITH"})`).join("\n")}
+${knownText}
 
 INFERRED
-- Identified ${inferredRels.length} analytical links requiring investigator review.
-${inferredRels.slice(0, 3).map((r) => `- Analytical lead: ${r.source} → ${r.target} (${r.status})`).join("\n")}
+${inferredText}
 
 UNCERTAIN
-- ${relationships.length - verifiedRels.length - inferredRels.length} relationships or candidate findings remain unverified or pending decision.`;
+- Specific motives or intent are not established by the available evidence records.
+- Investigator verification is required to confirm analytical links.`;
 }
