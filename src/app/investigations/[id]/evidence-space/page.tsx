@@ -24,6 +24,7 @@ import { ContextualChatWidget } from "@/components/investigation/ContextualChatW
 export default function EvidenceSpacePage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const entityIdParam = searchParams.get("entityId");
   const leadSource = searchParams.get("source");
   const leadTarget = searchParams.get("target");
 
@@ -88,14 +89,21 @@ export default function EvidenceSpacePage() {
     [id]
   );
 
+  // Handle URL query parameter entity selection & lead focusing
   useEffect(() => {
-    if (leadSource) {
-      if (leadTarget) {
-        setFocusedRelationshipNodes(new Set([leadSource, leadTarget]));
+    if (!graphData) return;
+
+    const targetId = entityIdParam || leadSource;
+    if (targetId) {
+      const nodeExists = graphData.nodes.some((n) => n.id === targetId);
+      if (nodeExists) {
+        if (leadSource && leadTarget) {
+          setFocusedRelationshipNodes(new Set([leadSource, leadTarget]));
+        }
+        loadEntityDetail(targetId);
       }
-      loadEntityDetail(leadSource);
     }
-  }, [leadSource, leadTarget, loadEntityDetail]);
+  }, [graphData, entityIdParam, leadSource, leadTarget, loadEntityDetail]);
 
   const handleSelectHistoryItem = (index: number) => {
     const item = entityHistory[index];

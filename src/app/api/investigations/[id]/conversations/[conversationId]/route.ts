@@ -12,7 +12,7 @@ export async function GET(
     const user = await requirePermission("ai:query");
     const { id, conversationId } = await params;
 
-    const conversation = await (db as any).conversation.findFirst({
+    const conversation = await db.conversation.findFirst({
       where: { id: conversationId, investigationId: id },
       include: {
         messages: {
@@ -51,7 +51,7 @@ export async function POST(
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    const conversation = await (db as any).conversation.findFirst({
+    const conversation = await db.conversation.findFirst({
       where: { id: conversationId, investigationId: id },
     });
 
@@ -60,7 +60,7 @@ export async function POST(
     }
 
     // Save user message first
-    const userMsg = await (db as any).chatMessage.create({
+    const userMsg = await db.chatMessage.create({
       data: {
         conversationId,
         role: "user",
@@ -130,7 +130,7 @@ export async function POST(
       context,
     });
 
-    const assistantMsg = await (db as any).chatMessage.create({
+    const assistantMsg = await db.chatMessage.create({
       data: {
         conversationId,
         role: "assistant",
@@ -140,7 +140,7 @@ export async function POST(
     });
 
     // Touch conversation updatedAt
-    await (db as any).conversation.update({
+    await db.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
@@ -176,7 +176,7 @@ export async function DELETE(
     const user = await requirePermission("ai:query");
     const { id, conversationId } = await params;
 
-    const conversation = await (db as any).conversation.findFirst({
+    const conversation = await db.conversation.findFirst({
       where: { id: conversationId, investigationId: id },
     });
 
@@ -184,7 +184,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    await (db as any).conversation.delete({
+    await db.conversation.delete({
       where: { id: conversationId },
     });
 

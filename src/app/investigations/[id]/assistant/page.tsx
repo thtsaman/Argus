@@ -41,7 +41,10 @@ export default function AssistantPage() {
   const [summarizing, setSummarizing] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const [initLoading, setInitLoading] = useState(true);
+
   const loadConversations = useCallback(async () => {
+    setInitLoading(true);
     try {
       let url = `/api/investigations/${id}/conversations`;
       if (contextType && contextId && !queryConvId) {
@@ -91,6 +94,8 @@ export default function AssistantPage() {
       }
     } catch {
       console.error("Failed to load conversations");
+    } finally {
+      setInitLoading(false);
     }
   }, [id, queryConvId, contextType, contextId, contextLabel]);
 
@@ -113,6 +118,7 @@ export default function AssistantPage() {
           contextType: contextType || null,
           contextId: contextId || null,
           contextLabel: contextLabel || null,
+          forceNew: true,
           title: contextLabel
             ? `${contextLabel} Thread (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
             : `Investigation Thread (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
@@ -130,7 +136,14 @@ export default function AssistantPage() {
     }
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const handleDeleteConversation = async (convId: string) => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
     try {
       const res = await fetch(`/api/investigations/${id}/conversations/${convId}`, {
         method: "DELETE",
@@ -147,11 +160,15 @@ export default function AssistantPage() {
             setActiveSummary(null);
           }
         }
+        setDeleteConfirmId(null);
+      } else {
+        const errData = await res.json();
+        setDeleteError(errData.error || "Failed to delete conversation thread.");
       }
     } catch {
-      console.error("Failed to delete conversation");
+      setDeleteError("Network error occurred while deleting conversation.");
     } finally {
-      setDeleteConfirmId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -174,36 +191,63 @@ export default function AssistantPage() {
   };
 
   const sendQuery = async (q: string) => {
-    if (!q.trim() || !activeConvId) return;
+    const trimmed = q.trim();
+    if (!trimmed) return;
+
+    let targetConvId = activeConvId;
     setLoading(true);
-    const tempMsg: Message = { role: "user", content: q };
+
+    const tempMsgId = `user-${Date.now()}`;
+    const tempMsg: Message = { id: tempMsgId, role: "user", content: trimmed };
     setMessages((prev) => [...prev, tempMsg]);
     setQuery("");
 
     try {
-      const res = await fetch(`/api/investigations/${id}/conversations/${activeConvId}`, {
+      if (!targetConvId) {
+        const createRes = await fetch(`/api/investigations/${id}/conversations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contextType: contextType || null,
+            contextId: contextId || null,
+            contextLabel: contextLabel || null,
+            title: contextLabel
+              ? `${contextLabel} (${contextType || "Focus"})`
+              : "Investigation Overview",
+          }),
+        });
+        const createData = await createRes.json();
+        if (createData.conversation) {
+          targetConvId = createData.conversation.id;
+          setActiveConvId(targetConvId);
+          setConversations((prev) => [createData.conversation, ...prev]);
+        } else {
+          throw new Error("Could not initialize thread");
+        }
+      }
+
+      const res = await fetch(`/api/investigations/${id}/conversations/${targetConvId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: trimmed }),
       });
       const data = await res.json();
       if (data.userMessage && data.assistantMessage) {
         setMessages((prev) => [
-          ...prev.slice(0, -1),
-          data.userMessage,
+          ...prev.map((m) => (m.id === tempMsgId ? data.userMessage : m)),
           data.assistantMessage,
         ]);
         // Update list update timestamp
         setConversations((prev) =>
-          prev.map((c) => (c.id === activeConvId ? { ...c, updatedAt: new Date().toISOString() } : c))
+          prev.map((c) => (c.id === targetConvId ? { ...c, updatedAt: new Date().toISOString() } : c))
         );
       } else {
-        throw new Error("Invalid response");
+        throw new Error(data.error || "Invalid response");
       }
-    } catch {
+    } catch (err: any) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Failed to process query.", error: "Network error" },
+        { role: "assistant", content: "Failed to process query.", error: err.message || "Network error" },
       ]);
     } finally {
       setLoading(false);
@@ -405,11 +449,11 @@ export default function AssistantPage() {
                     : "Ask about evidence, entities, relationships, or leads..."
                 }
                 className="flex-1 text-xs border border-border rounded px-3 py-2 bg-background focus:border-accent"
-                disabled={loading || !activeConvId}
+                disabled={loading}
               />
               <button
                 type="submit"
-                disabled={loading || !query.trim() || !activeConvId}
+                disabled={loading || !query.trim()}
                 className="text-xs py-2 px-4 bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
               >
                 Send
@@ -429,18 +473,47 @@ export default function AssistantPage() {
             <p className="text-xs text-text-muted">
               Are you sure you want to permanently delete this chat thread? This action cannot be undone. Evidence and investigation graph data will remain intact.
             </p>
+            {deleteError && (
+              <p className="text-xs text-status-rejected font-mono">{deleteError}</p>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-3 py-1.5 text-xs border border-border rounded hover:bg-background transition-colors"
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmId(null);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+                style={{
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.75rem",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "var(--surface)",
+                  color: "var(--foreground)",
+                  cursor: "pointer",
+                  opacity: isDeleting ? 0.5 : 1,
+                }}
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => handleDeleteConversation(deleteConfirmId)}
-                className="px-3 py-1.5 text-xs bg-status-rejected text-surface-elevated rounded font-medium hover:bg-status-rejected/90 transition-colors"
+                disabled={isDeleting}
+                style={{
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  border: "1px solid #8b4444",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#8b4444",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  opacity: isDeleting ? 0.5 : 1,
+                }}
               >
-                Confirm Delete
+                {isDeleting ? "Deleting..." : "Delete Conversation"}
               </button>
             </div>
           </div>

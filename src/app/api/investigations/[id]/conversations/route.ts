@@ -18,7 +18,7 @@ export async function GET(
     if (contextType) where.contextType = contextType;
     if (contextId) where.contextId = contextId;
 
-    const conversations = await (db as any).conversation.findMany({
+    const conversations = await db.conversation.findMany({
       where,
       orderBy: { updatedAt: "desc" },
       include: {
@@ -27,6 +27,19 @@ export async function GET(
         },
       },
     });
+
+    if (contextType && contextId) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const dailyThread = conversations.find(
+        (c) => new Date(c.createdAt) >= todayStart
+      );
+
+      if (dailyThread) {
+        return NextResponse.json({ conversations: [dailyThread, ...conversations.filter(c => c.id !== dailyThread.id)] });
+      }
+    }
 
     return NextResponse.json({ conversations });
   } catch (err) {
@@ -49,15 +62,45 @@ export async function POST(
     const { id } = await params;
     const body = await req.json();
 
-    const { contextType, contextId, contextLabel, title } = body;
+    const { contextType, contextId, contextLabel, title, forceNew } = body;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // If context is provided and forceNew is not true, look for existing daily thread
+    if (contextType && contextId && !forceNew) {
+      const existingDaily = await db.conversation.findFirst({
+        where: {
+          investigationId: id,
+          contextType,
+          contextId,
+          createdAt: { gte: todayStart },
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      if (existingDaily) {
+        return NextResponse.json({ conversation: existingDaily });
+      }
+    }
+
+    const dateStr = new Date().toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
 
     const convTitle =
       title ||
       (contextLabel
-        ? `${contextLabel} (${contextType || "Focus"})`
-        : "Investigation Overview");
+        ? `${contextLabel} (${dateStr})`
+        : `Overview (${dateStr})`);
 
-    const conversation = await (db as any).conversation.create({
+    const conversation = await db.conversation.create({
       data: {
         investigationId: id,
         userId: user.id,

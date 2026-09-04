@@ -83,26 +83,50 @@ export function ContextualChatWidget({
   }, [messages, loading]);
 
   const handleSend = async (q: string) => {
-    if (!q.trim() || !conversationId) return;
-    const tempUserMsg: Message = { id: `temp-${Date.now()}`, role: "user", content: q.trim() };
-    setMessages((prev) => [...prev, tempUserMsg]);
-    setQuery("");
+    const trimmed = q.trim();
+    if (!trimmed) return;
+
+    let activeId = conversationId;
     setLoading(true);
 
+    const userMsgId = `user-${Date.now()}`;
+    const tempUserMsg: Message = { id: userMsgId, role: "user", content: trimmed };
+    setMessages((prev) => [...prev, tempUserMsg]);
+    setQuery("");
+
     try {
+      if (!activeId) {
+        const createRes = await fetch(`/api/investigations/${investigationId}/conversations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contextType,
+            contextId,
+            contextLabel,
+            title: `${contextLabel} Chat`,
+          }),
+        });
+        const createData = await createRes.json();
+        if (createData.conversation) {
+          activeId = createData.conversation.id;
+          setConversationId(activeId);
+        } else {
+          throw new Error(createData.error || "Failed to start thread");
+        }
+      }
+
       const res = await fetch(
-        `/api/investigations/${investigationId}/conversations/${conversationId}`,
+        `/api/investigations/${investigationId}/conversations/${activeId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: q.trim() }),
+          body: JSON.stringify({ query: trimmed }),
         }
       );
       const data = await res.json();
       if (data.userMessage && data.assistantMessage) {
         setMessages((prev) => [
-          ...prev.filter((m) => m.id !== tempUserMsg.id),
-          data.userMessage,
+          ...prev.map((m) => (m.id === userMsgId ? data.userMessage : m)),
           data.assistantMessage,
         ]);
       } else {
@@ -244,11 +268,11 @@ export function ContextualChatWidget({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={`Ask about ${contextLabel}...`}
           className="flex-1 text-xs border border-border rounded px-2.5 py-1.5 bg-background focus:border-accent"
-          disabled={loading || initLoading}
+          disabled={loading}
         />
         <button
           type="submit"
-          disabled={loading || !query.trim() || initLoading}
+          disabled={loading || !query.trim()}
           className="text-xs px-3 py-1.5 bg-accent text-surface-elevated rounded font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
         >
           Send

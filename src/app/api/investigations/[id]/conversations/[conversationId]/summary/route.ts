@@ -11,7 +11,7 @@ export async function POST(
     const user = await requirePermission("ai:query");
     const { id, conversationId } = await params;
 
-    const conversation = await (db as any).conversation.findFirst({
+    const conversation = await db.conversation.findFirst({
       where: { id: conversationId, investigationId: id },
       include: {
         messages: {
@@ -51,7 +51,7 @@ ${messagesText || "No messages in conversation yet."}`;
       error: error || null,
     };
 
-    await (db as any).conversation.update({
+    await db.conversation.update({
       where: { id: conversationId },
       data: { summary: summaryObj },
     });

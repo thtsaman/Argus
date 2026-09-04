@@ -38,8 +38,19 @@ export function EmptyState({ title, description }: { title: string; description?
 
 export function LoadingState({ message = "Loading..." }: { message?: string }) {
   return (
-    <div className="surface p-12 text-center" suppressHydrationWarning>
-      <p className="text-sm text-text-muted">{message}</p>
+    <div className="surface p-12 text-center flex flex-col items-center justify-center space-y-4" suppressHydrationWarning>
+      <div className="relative flex items-center justify-center w-14 h-14">
+        {/* Outer rotating loading ring */}
+        <div className="absolute inset-0 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
+        {/* Inner static ARGUS logo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/logo.svg"
+          alt="ARGUS Logo"
+          className="w-7 h-7 object-contain relative z-10"
+        />
+      </div>
+      {message && <p className="text-xs text-text-muted font-medium">{message}</p>}
     </div>
   );
 }
