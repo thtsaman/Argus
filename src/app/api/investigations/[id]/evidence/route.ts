@@ -283,10 +283,8 @@ export async function POST(
               blockchainAnchoredAt: new Date(),
             },
           });
-        } catch (blockchainError) {
-          blockchainWarning = blockchainError instanceof Error
-            ? blockchainError.message
-            : "Blockchain anchoring failed";
+        } catch {
+          blockchainWarning = "Blockchain anchoring unavailable";
           blockchainRecord = await db.evidenceItem.update({
             where: { id: evidenceRecord.id },
             data: { blockchainStatus: "FAILED", blockchainHash },

@@ -42,6 +42,6 @@ export async function POST(
     }, { status: result.status === "NOT_ANCHORED" ? 409 : 200 });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: 403 });
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Evidence verification failed" }, { status: 502 });
+    return NextResponse.json({ error: "Unable to verify evidence integrity right now" }, { status: 502 });
   }
 }
