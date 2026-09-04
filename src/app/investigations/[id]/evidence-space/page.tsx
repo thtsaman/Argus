@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { EvidenceGraph } from "@/components/graph/EvidenceGraph";
-import { PageHeader, SectionHeader, LoadingState } from "@/components/ui/common";
+import { PageHeader, SectionHeader, LoadingState, ErrorState } from "@/components/ui/common";
 import { RelationshipStatusBadge } from "@/components/ui/RelationshipStatus";
 import {
   EntityIntelligencePanel,
@@ -63,28 +63,45 @@ export default function EvidenceSpacePage() {
       });
   }, [id]);
 
+  const [entityLoading, setEntityLoading] = useState(false);
+  const [entityError, setEntityError] = useState<string | null>(null);
+
   const loadEntityDetail = useCallback(
     async (nodeId: string, customHistoryLabel?: string) => {
       setSelectedNode(nodeId);
       setSelectedRelationship(null);
       setFocusedRelationshipNodes(null);
+      setEntityLoading(true);
+      setEntityError(null);
 
-      const res = await fetch(`/api/investigations/${id}/entities/${nodeId}`);
-      const data = await res.json();
-      const entity: FullEntityDetail = data.entity;
-
-      setEntityDetail(entity);
-      setEntityContext(data.context);
-      setRelatedRels(data.relationships || []);
-
-      const currentLabel = customHistoryLabel || entity?.label || nodeId;
-      setEntityHistory((prev) => {
-        if (prev.some((h) => h.id === nodeId)) {
-          const existingIndex = prev.findIndex((h) => h.id === nodeId);
-          return prev.slice(0, existingIndex + 1);
+      try {
+        const res = await fetch(`/api/investigations/${id}/entities/${nodeId}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to load entity intelligence profile.");
         }
-        return [...prev, { id: nodeId, label: currentLabel }];
-      });
+        const data = await res.json();
+        const entity: FullEntityDetail = data.entity;
+
+        setEntityDetail(entity);
+        setEntityContext(data.context);
+        setRelatedRels(data.relationships || []);
+
+        const currentLabel = customHistoryLabel || entity?.label || nodeId;
+        setEntityHistory((prev) => {
+          if (prev.some((h) => h.id === nodeId)) {
+            const existingIndex = prev.findIndex((h) => h.id === nodeId);
+            return prev.slice(0, existingIndex + 1);
+          }
+          return [...prev, { id: nodeId, label: currentLabel }];
+        });
+      } catch (err: any) {
+        console.error("Error loading entity detail:", err);
+        setEntityError(err.message || "Failed to resolve entity details.");
+        setEntityDetail(null);
+      } finally {
+        setEntityLoading(false);
+      }
     },
     [id]
   );
@@ -95,13 +112,10 @@ export default function EvidenceSpacePage() {
 
     const targetId = entityIdParam || leadSource;
     if (targetId) {
-      const nodeExists = graphData.nodes.some((n) => n.id === targetId);
-      if (nodeExists) {
-        if (leadSource && leadTarget) {
-          setFocusedRelationshipNodes(new Set([leadSource, leadTarget]));
-        }
-        loadEntityDetail(targetId);
+      if (leadSource && leadTarget) {
+        setFocusedRelationshipNodes(new Set([leadSource, leadTarget]));
       }
+      loadEntityDetail(targetId);
     }
   }, [graphData, entityIdParam, leadSource, leadTarget, loadEntityDetail]);
 
@@ -192,6 +206,8 @@ export default function EvidenceSpacePage() {
     setRelatedRels([]);
     setEntityHistory([]);
     setSelectedRelationship(null);
+    setEntityError(null);
+    setEntityLoading(false);
   };
 
   const handleNodeClick = (nodeId: string) => {
@@ -407,7 +423,21 @@ export default function EvidenceSpacePage() {
             </div>
           </div>
 
-          {selectedRelationship ? (
+          {entityLoading ? (
+            <div className="surface p-8 rounded-lg border border-border">
+              <LoadingState message="Resolving entity intelligence profile..." />
+            </div>
+          ) : entityError ? (
+            <div className="surface p-6 rounded-lg border border-status-rejected text-center space-y-3">
+              <ErrorState title="Entity Resolution Error" description={entityError} />
+              <button
+                onClick={handleDeselectEntity}
+                className="text-xs px-3 py-1 bg-surface border border-border rounded text-text-secondary hover:text-foreground font-medium"
+              >
+                Clear Selection
+              </button>
+            </div>
+          ) : selectedRelationship ? (
             <RelationshipDetailPanel
               relationship={selectedRelationship}
               investigationId={id}

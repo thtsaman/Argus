@@ -66,6 +66,17 @@ export function EvidenceGraph({
     return { nodes, links };
   }, [data]);
 
+  const fgRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!selectedNodeId || !fgRef.current) return;
+    const node = graphData.nodes.find((n) => n.id === selectedNodeId) as any;
+    if (node && typeof node.x === "number" && typeof node.y === "number") {
+      fgRef.current.centerAt(node.x, node.y, 800);
+      fgRef.current.zoom(2.5, 800);
+    }
+  }, [selectedNodeId, graphData]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -161,6 +172,7 @@ export function EvidenceGraph({
   return (
     <div ref={containerRef} className="w-full h-full min-h-[500px] surface overflow-hidden">
       <ForceGraph2D
+        ref={fgRef}
         graphData={graphData}
         width={dims.width}
         height={dims.height}

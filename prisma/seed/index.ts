@@ -8,6 +8,7 @@ import {
   Role,
 } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { seedQuestionMark } from "./questionMarkSeed";
 
 const db = new PrismaClient();
 
@@ -424,5 +425,8 @@ export async function seedDatabase(preset: SeedPreset = "demo") {
   });
 
   console.log(`Seed complete: ${allEntities.length} entities, ${relationships.length} relationships, ${locations.length} locations`);
+
+  await seedQuestionMark(db);
+
   return { investigation, users };
 }
