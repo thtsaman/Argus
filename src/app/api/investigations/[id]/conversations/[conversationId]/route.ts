@@ -233,8 +233,8 @@ export async function POST(
       }));
     }
 
-    // Always fetch open investigation tasks and overarching investigation details
-    const [tasks, investigation] = await Promise.all([
+    // Always fetch open investigation tasks, overarching investigation details, and financial context
+    const [tasks, investigation, financialEntities, financialTxs, financialSignals] = await Promise.all([
       db.investigationTask.findMany({
         where: { investigationId: id, status: { in: ["OPEN", "IN_PROGRESS", "BLOCKED"] } },
         take: 10,
@@ -250,6 +250,20 @@ export async function POST(
       db.investigation.findUnique({
         where: { id },
         select: { title: true, description: true, caseNumber: true },
+      }),
+      db.financialEntity.findMany({
+        where: { investigationId: id },
+        select: { identifier: true, label: true, type: true, attributionStatus: true },
+      }),
+      db.transaction.findMany({
+        where: { investigationId: id },
+        take: 15,
+        orderBy: { timestamp: "desc" },
+        include: { sender: { select: { identifier: true } }, receiver: { select: { identifier: true } } },
+      }),
+      db.candidateFinding.findMany({
+        where: { investigationId: id, type: "RELATIONSHIP" },
+        select: { label: true, description: true, sourceExcerpt: true, data: true },
       }),
     ]);
 
@@ -268,6 +282,21 @@ export async function POST(
       relevantEvidence,
       relevantEvents,
       relevantLeads,
+      financialEntities,
+      recentTransactions: financialTxs.map((t) => ({
+        id: t.id,
+        from: t.sender.identifier,
+        to: t.receiver.identifier,
+        amount: `₹${(Number(t.amount) / 100000).toFixed(2)}L`,
+        timestamp: t.timestamp.toISOString(),
+        incident: t.incident,
+        purpose: t.purpose,
+      })),
+      financialSignals: financialSignals.filter((c: any) => c.data?.signalKey).map((s) => ({
+        title: s.label,
+        explanation: s.description,
+        doNotClaimNotice: s.sourceExcerpt,
+      })),
       openInvestigationTasks: tasks,
     };
 

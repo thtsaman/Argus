@@ -55,8 +55,8 @@ export async function GET(
     },
   });
 
-  // Fetch associated events, candidate findings/leads, and evidence items for deep dynamic analysis
-  const [events, candidateFindings, relationshipLinks] = await Promise.all([
+  // Fetch associated events, candidate findings/leads, evidence items, and financial activity for deep dynamic analysis
+  const [events, candidateFindings, relationshipLinks, linkedFinancialEntities] = await Promise.all([
     db.event.findMany({
       where: {
         investigationId: id,
@@ -82,7 +82,29 @@ export async function GET(
         evidence: { select: { id: true, title: true, type: true, source: true } },
       },
     }),
+    db.financialEntity.findMany({
+      where: { investigationId: id, linkedEntityId: entityId },
+      include: {
+        sentTransactions: { select: { amount: true } },
+        receivedTransactions: { select: { amount: true } },
+      },
+    }),
   ]);
+
+  // Calculate financial activity totals for entity
+  let totalFinancialReceived = 0;
+  let totalFinancialSent = 0;
+  let totalFinancialTxCount = 0;
+  linkedFinancialEntities.forEach((fe) => {
+    fe.sentTransactions.forEach((t) => {
+      totalFinancialSent += Number(t.amount);
+      totalFinancialTxCount++;
+    });
+    fe.receivedTransactions.forEach((t) => {
+      totalFinancialReceived += Number(t.amount);
+      totalFinancialTxCount++;
+    });
+  });
 
   const evidenceItems = Array.from(
     new Map(relationshipLinks.map((rl) => [rl.evidence.id, rl.evidence])).values()
@@ -226,6 +248,19 @@ export async function GET(
     whyItMatters,
     investigationRelevance,
     whatToInvestigateNext: whatToInvestigateNext.slice(0, 5),
+    financialActivity: {
+      linkedAccountsCount: linkedFinancialEntities.length,
+      txCount: totalFinancialTxCount,
+      receivedAmount: totalFinancialReceived,
+      sentAmount: totalFinancialSent,
+      accounts: linkedFinancialEntities.map((f) => ({
+        id: f.id,
+        identifier: f.identifier,
+        label: f.label,
+        type: f.type,
+        attributionStatus: f.attributionStatus,
+      })),
+    },
   };
 
   return NextResponse.json({ entity, relationships, context });

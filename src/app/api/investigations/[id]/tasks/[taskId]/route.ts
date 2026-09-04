@@ -16,8 +16,6 @@ export async function GET(
       include: {
         entity: { select: { id: true, label: true, type: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
-        parentTask: { select: { id: true, title: true } },
-        followUpTasks: { select: { id: true, title: true, status: true } },
       },
     });
 

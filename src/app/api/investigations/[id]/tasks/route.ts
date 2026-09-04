@@ -32,7 +32,6 @@ export async function GET(
       include: {
         entity: { select: { id: true, label: true, type: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
-        parentTask: { select: { id: true, title: true } },
       },
     });
 
@@ -142,12 +141,9 @@ export async function POST(
         status: status || "OPEN",
         sourceType: sourceType || "INVESTIGATOR_CREATED",
         expectedOutcome: expectedOutcome?.trim() || null,
-        entityId: entityId || null,
         relationshipId: relationshipId || null,
         evidenceId: evidenceId || null,
         leadId: leadId || null,
-        eventId: eventId || null,
-        parentTaskId: parentTaskId || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         assignedToId: user.id,
       },
