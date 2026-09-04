@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { CandidateType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/auth/permissions";
 import { createAuditLog } from "@/lib/audit/chain";
 import { extractTextFromFile, detectMimeType } from "@/lib/evidence/parser";
 import { extractFromText } from "@/lib/ai/provider";
 import { APP_CONFIG } from "@/lib/config";
+import { sha256 } from "@/lib/crypto";
+import { anchorEvidence } from "@/lib/blockchain";
 
 // Sanitizes filename to prevent path traversal & safe storage
 function sanitizeFilename(name: string): string {
@@ -144,9 +147,9 @@ export async function POST(
               // If type is PERSON, maps to ENTITY or PERSON depending on enum, CandidateType has ENTITY, EVENT, RELATIONSHIP, LOCATION, VEHICLE, ORGANIZATION, ACCOUNT, PHONE
               // Note: CandidateType enum contains: ENTITY, EVENT, RELATIONSHIP, LOCATION, VEHICLE, ORGANIZATION, ACCOUNT, PHONE
               // 'PERSON' is not in CandidateType enum! It maps to 'ENTITY' or 'PERSON' if in enum.
-              let candidateType: any = "ENTITY";
+              let candidateType: CandidateType = "ENTITY";
               if (validCandidateTypes.has(entityTypeUpper) && entityTypeUpper !== "PERSON") {
-                candidateType = entityTypeUpper;
+                candidateType = entityTypeUpper as CandidateType;
               }
 
               await db.candidateFinding.create({
@@ -240,7 +243,7 @@ export async function POST(
         }
 
         // Update evidence item to READY / EXTRACTED state
-        const updatedRecord = await db.evidenceItem.update({
+        await db.evidenceItem.update({
           where: { id: evidenceRecord.id },
           data: {
             filePath,
@@ -257,6 +260,39 @@ export async function POST(
           },
         });
 
+        const blockchainHash = `0x${sha256(buffer)}`;
+        let blockchainRecord = await db.evidenceItem.update({
+          where: { id: evidenceRecord.id },
+          data: { blockchainHash, blockchainStatus: "PENDING" },
+        });
+        let blockchainWarning: string | undefined;
+
+        try {
+          const anchor = await anchorEvidence({
+            evidenceId: evidenceRecord.id,
+            evidenceHash: blockchainHash,
+            agencyId: "KOLKATA_POLICE",
+          });
+          blockchainRecord = await db.evidenceItem.update({
+            where: { id: evidenceRecord.id },
+            data: {
+              blockchainStatus: "ANCHORED",
+              blockchainHash,
+              blockchainTxHash: anchor.txHash,
+              blockchainBlock: anchor.blockNumber,
+              blockchainAnchoredAt: new Date(),
+            },
+          });
+        } catch (blockchainError) {
+          blockchainWarning = blockchainError instanceof Error
+            ? blockchainError.message
+            : "Blockchain anchoring failed";
+          blockchainRecord = await db.evidenceItem.update({
+            where: { id: evidenceRecord.id },
+            data: { blockchainStatus: "FAILED", blockchainHash },
+          });
+        }
+
         await createAuditLog({
           userId: user.id,
           action: "EVIDENCE_CREATED",
@@ -266,11 +302,16 @@ export async function POST(
         });
 
         results.push({
-          id: updatedRecord.id,
+          id: blockchainRecord.id,
           fileName: originalFileName,
           status: "READY",
           size: file.size,
-          record: updatedRecord,
+          blockchain: {
+            status: blockchainRecord.blockchainStatus,
+            hash: blockchainRecord.blockchainHash,
+            warning: blockchainWarning,
+          },
+          record: blockchainRecord,
         });
       } catch (procErr) {
         const errorMessage = procErr instanceof Error ? procErr.message : "Processing failed";
