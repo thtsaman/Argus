@@ -141,6 +141,29 @@ export default function EvidenceLibraryPage() {
                       </td>
                       <td className="py-3 px-4">
                         {getStatusBadge(item.status)}
+                        <div className="mt-1">
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider ${item.blockchainStatus === "ANCHORED" ? "text-status-verified" : item.blockchainStatus === "FAILED" ? "text-status-rejected" : "text-text-muted"}`}>
+                            {item.blockchainStatus === "ANCHORED" ? "ANCHORED ✓" : item.blockchainStatus === "PENDING" ? "PENDING" : item.blockchainStatus === "FAILED" ? "FAILED" : "NOT ANCHORED"}
+                          </span>
+                          {item.blockchainStatus === "ANCHORED" && item.blockchainBlock != null && (
+                            <div className="mt-0.5 space-y-0.5 text-[10px] text-text-muted font-mono">
+                              {item.blockchainHash && (
+                                <span className="block truncate max-w-[180px]" title={item.blockchainHash}>
+                                  SHA {item.blockchainHash}
+                                </span>
+                              )}
+                              {item.blockchainTxHash && (
+                                <span className="block truncate max-w-[180px]" title={item.blockchainTxHash}>
+                                  TX {item.blockchainTxHash}
+                                </span>
+                              )}
+                              <span className="block">Block {item.blockchainBlock}</span>
+                              {item.blockchainAnchoredAt && (
+                                <span className="block">{format(new Date(item.blockchainAnchoredAt), "dd MMM yyyy, HH:mm")}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-text-muted font-mono text-[11px]">
                         {dateStr}

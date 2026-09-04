@@ -345,24 +345,31 @@ model Event {
 }
 
 model EvidenceItem {
-  id              String         @id @default(cuid())
-  investigationId String
-  investigation   Investigation  @relation(fields: [investigationId], references: [id], onDelete: Cascade)
-  title           String
-  description     String?
-  type            EvidenceType   @default(DOCUMENT)
-  status          EvidenceStatus @default(PENDING)
-  source          String?
-  fileName        String?
-  mimeType        String?
-  filePath        String?
-  rawContent      String?
+  id                String         @id @default(cuid())
+  investigationId   String
+  investigation     Investigation  @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?
+  type              EvidenceType   @default(DOCUMENT)
+  status            EvidenceStatus @default(PENDING)
+  source            String?
+  fileName          String?
+  mimeType          String?
+  filePath          String?
+  rawContent        String?
   normalizedContent String?
-  metadata        Json?
-  uploadedAt      DateTime       @default(now())
-  processedAt     DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  metadata          Json?
+  uploadedAt        DateTime       @default(now())
+  processedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Blockchain integrity
+  blockchainStatus   String?
+  blockchainHash     String?
+  blockchainTxHash   String?
+  blockchainBlock    Int?
+  blockchainAnchoredAt DateTime?
 
   relationshipLinks RelationshipEvidence[]
   eventLinks        EventEvidence[]
@@ -372,7 +379,6 @@ model EvidenceItem {
   @@index([investigationId])
   @@index([status])
 }
-
 model Relationship {
   id              String             @id @default(cuid())
   investigationId String

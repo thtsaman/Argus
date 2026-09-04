@@ -430,3 +430,18 @@ export async function seedDatabase(preset: SeedPreset = "demo") {
 
   return { investigation, users };
 }
+
+export async function provisionDemoInvestigator() {
+  const password = await hash("password123", 10);
+  return db.user.upsert({
+    where: { email: "investigator@demo.local" },
+    update: { name: "Demo Investigator", role: Role.INVESTIGATOR, password },
+    create: {
+      email: "investigator@demo.local",
+      name: "Demo Investigator",
+      role: Role.INVESTIGATOR,
+      password,
+    },
+    select: { id: true, role: true },
+  });
+}
