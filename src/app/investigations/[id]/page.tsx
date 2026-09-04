@@ -10,6 +10,7 @@ import { analyzeKeyEntities } from "@/lib/investigation/influenceAnalysis";
 import { KeyEntitiesSection } from "@/components/investigation/KeyEntitiesSection";
 import { detectSuspiciousPatterns } from "@/lib/investigation/patternDetection";
 import { PatternsOverviewSection } from "@/components/investigation/PatternsOverviewSection";
+import { TasksOverviewSection } from "@/components/investigation/TasksOverviewSection";
 
 export default async function InvestigationOverviewPage({
   params,
@@ -133,6 +134,9 @@ export default async function InvestigationOverviewPage({
           </dl>
         </div>
       </div>
+
+      {/* Investigation Tasks / Attention Section */}
+      <TasksOverviewSection investigationId={id} />
 
       {/* Key Entities Section */}
       <KeyEntitiesSection keyEntities={keyEntities} investigationId={id} />

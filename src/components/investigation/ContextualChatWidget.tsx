@@ -248,7 +248,7 @@ export function ContextualChatWidget({
         {loading && (
           <div className="p-2.5 bg-surface rounded border border-border text-[11px] text-text-muted flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
-            Analyzing evidence context...
+            Argus is thinking...
           </div>
         )}
         <div ref={messagesEndRef} />

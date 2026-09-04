@@ -34,20 +34,23 @@ const SYSTEM_PROMPT = `You are ARGUS Assistant, an evidence-grounded investigati
 
 STRICT GROUNDING & EXPLANATION RULES:
 1. Ground every answer ONLY in the provided investigation context. Never invent facts, entities, relationships, or evidence excerpts.
-2. When asked why a relationship or lead was flagged/surfaced, locate the "explanation", "reason", or supporting "evidenceExcerpts" in the context.
+2. When asked why a relationship, entity, or lead was flagged/surfaced, locate the supporting evidence excerpts, relationships, and events in the context.
 3. If the investigation data does NOT contain enough verified evidence or rationale to answer a specific question, state clearly what evidence exists and explicitly state what is missing or uncertain. If no relevant evidence exists at all, respond strictly: "I don't have enough verified evidence in this investigation to answer that."
-4. Format all responses using strict Fact / Inference separation using these three exact section titles:
+4. Format all responses using strict Fact / Inference separation using these four exact section titles:
 
 KNOWN
-[State direct facts explicitly supported by verified evidence records, source excerpts, and direct relationships.]
+[State direct facts explicitly supported by verified evidence records, source excerpts, employment records, and direct relationships.]
 
 INFERRED
-[State relationships or conclusions marked as AI-suggested, inferred, or candidate findings. Explain WHY they were flagged using the evidence excerpts or explanation metadata when present.]
+[State cautious interpretations of why the combination of facts warrants investigation. Explain why relationships were flagged without asserting criminal guilt.]
 
 UNCERTAIN
-[State unverified links, evidence gaps, or items requiring investigator decision/review. Explicitly state what the available evidence does NOT establish.]
+[State missing information, unsupported assumptions, and unresolved links. Explicitly state what the available evidence does NOT establish (e.g., does not establish criminal coordination or illegal distribution).]
 
-5. Never use accusatory terms (e.g. "suspect", "guilty", "fraudster"). Use neutral investigative terms ("potential connection", "observed activity", "unverified link").`;
+NEXT TO INVESTIGATE
+[Provide 2-5 concrete, evidence-grounded investigative actions based on the available data.]
+
+5. Never use accusatory terms (e.g. "suspect", "guilty", "fraudster", "criminal"). Use neutral investigative terms ("potential connection", "observed activity", "unverified link").`;
 
 function wrapEvidenceContent(content: string): string {
   const flags = detectSuspiciousContent(content);
@@ -342,6 +345,7 @@ function generateFallbackExplanation(
   const rels = (context.relevantRelationships as any[]) || [];
   const evs = (context.relevantEvidence as any[]) || [];
   const leads = (context.relevantLeads as any[]) || [];
+  const focusLabel = focus?.label || focus?.details?.label || "the selected entity";
 
   if (!focus && rels.length === 0 && evs.length === 0) {
     return "I don't have enough verified evidence in this investigation to answer that.";
@@ -350,31 +354,45 @@ function generateFallbackExplanation(
   const verified = rels.filter((r) => r.status === "VERIFIED" || r.status === "DIRECT");
   const inferred = rels.filter((r) => r.status === "AI_SUGGESTED" || r.status === "UNDER_REVIEW");
 
-  const focusLabel = focus?.label ? ` focusing on ${focus.label}` : "";
-
-  let knownText = verified.length > 0
-    ? verified.slice(0, 3).map((r) => `- ${r.source || focus?.label} → ${r.target || r.connectedEntity} (${r.type || "ASSOCIATED_WITH"})`).join("\n")
-    : `- Retrieved investigation context${focusLabel}.`;
+  let knownLines: string[] = [];
+  if (verified.length > 0) {
+    knownLines.push(...verified.slice(0, 4).map((r) => `- Documented relationship: ${r.source || focusLabel} → ${r.target || r.connectedEntity} (${r.type || "ASSOCIATED_WITH"}).`));
+  } else if (focus?.details) {
+    knownLines.push(`- Entity Record: ${focus.details.label} (${focus.details.type || "ENTITY"}).`);
+  } else {
+    knownLines.push(`- Recorded entity focus: ${focusLabel}.`);
+  }
 
   if (evs.length > 0 && evs[0].excerpt) {
-    knownText += `\n- Evidence excerpt (${evs[0].title || "Record"}): "${evs[0].excerpt.slice(0, 200)}..."`;
+    knownLines.push(`- Primary evidence excerpt (${evs[0].title || "Record"}): "${evs[0].excerpt.slice(0, 200)}..."`);
   }
 
-  let inferredText = inferred.length > 0
-    ? inferred.slice(0, 3).map((r) => `- Flagged relationship: ${r.source || focus?.label} → ${r.target || r.connectedEntity} (${r.status}). ${r.explanation ? `Reason: ${r.explanation}` : ""}`).join("\n")
-    : `- No additional inferred links flagged in this focus scope.`;
-
-  if (leads.length > 0) {
-    inferredText += `\n- Surfaced Lead: ${leads[0].title}. ${leads[0].explanation ? `Rationale: ${leads[0].explanation}` : ""}`;
+  let inferredLines: string[] = [];
+  if (inferred.length > 0) {
+    inferredLines.push(...inferred.slice(0, 3).map((r) => `- Observed overlap: ${r.source || focusLabel} maintains an unverified link with ${r.target || r.connectedEntity} (${r.status}).`));
   }
+  inferredLines.push(`- Repeated co-occurrences across communication and organizational records justify further investigative verification.`);
+
+  let uncertainLines: string[] = [
+    `- The current evidence does NOT establish criminal coordination, unauthorized access, or illegal distribution of examination material.`,
+    `- Specific motives and underlying intent remain unconfirmed by existing database records.`,
+  ];
+
+  let nextLines: string[] = [
+    `- Review primary communication logs and source documents surrounding ${focusLabel}.`,
+    `- Cross-reference ${focusLabel}'s activity timestamps against key incident dates in the timeline.`,
+    `- Verify unconfirmed relationship links with connected entities before drawing conclusions.`,
+  ];
 
   return `KNOWN
-${knownText}
+${knownLines.join("\n")}
 
 INFERRED
-${inferredText}
+${inferredLines.join("\n")}
 
 UNCERTAIN
-- Specific motives or intent are not established by the available evidence records.
-- Investigator verification is required to confirm analytical links.`;
+${uncertainLines.join("\n")}
+
+NEXT TO INVESTIGATE
+${nextLines.join("\n")}`;
 }

@@ -65,6 +65,17 @@ export function RelationshipDetailPanel({
         )}
       </div>
 
+      <div className="p-3 bg-background rounded border border-border space-y-1 text-xs">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
+          Relationship Context & Meaning
+        </span>
+        <p className="text-text-secondary leading-relaxed">
+          {isDirect
+            ? `${relationship.type} relationship directly established by verified primary evidence records. ${relationship.source.label} and ${relationship.target.label} are linked through documented activity.`
+            : `Analytical association flagged as ${relationship.status.replace("_", " ")} based on extracted entity co-occurrences and pattern indicators. Requires investigator verification.`}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div>
           <span className="text-text-muted block">Type</span>
@@ -101,6 +112,29 @@ export function RelationshipDetailPanel({
           <span className="font-medium text-foreground">{evidenceCount} record(s)</span>
         </div>
       </div>
+
+      {/* Supporting Evidence Previews */}
+      {relationship.evidence && relationship.evidence.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-border">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted block">
+            Supporting Evidence Records
+          </span>
+          <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1 text-xs">
+            {relationship.evidence.map((item, idx) => (
+              <div key={`${item.evidence.id}-${idx}`} className="p-2 bg-background rounded border border-border/80 space-y-1 font-mono">
+                <span className="font-sans font-semibold text-foreground block text-[11px]">
+                  📄 {item.evidence.title}
+                </span>
+                {item.excerpt && (
+                  <p className="text-[10px] text-text-secondary italic line-clamp-2">
+                    "{item.excerpt}"
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="pt-2 flex flex-col gap-2 border-t border-border">

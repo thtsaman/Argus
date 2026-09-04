@@ -11,6 +11,14 @@ export interface EntityContextData {
   eventCount: number;
   locationCount: number;
   whyItMatters: string | null;
+  investigationRelevance?: string | null;
+  whatToInvestigateNext?: {
+    id: string;
+    action: string;
+    type: "View Evidence" | "Show in Network" | "View Timeline" | "View Relationship" | "Ask ARGUS";
+    targetId?: string;
+    entityId?: string;
+  }[];
 }
 
 export interface FullEntityDetail {
@@ -185,6 +193,73 @@ export function EntityIntelligencePanel({
             "No significant analytical finding has been generated for this entity yet."}
         </p>
       </div>
+
+      {/* Investigation Relevance */}
+      {context?.investigationRelevance && (
+        <div className="p-3 bg-background rounded-lg border border-border space-y-1">
+          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+            Investigation Relevance
+          </h4>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            {context.investigationRelevance}
+          </p>
+        </div>
+      )}
+
+      {/* What to Investigate Next */}
+      {context?.whatToInvestigateNext && context.whatToInvestigateNext.length > 0 && (
+        <div className="p-3 bg-background rounded-lg border border-border space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              What to Investigate Next
+            </h4>
+            <span className="text-[10px] font-mono text-text-muted">Investigation Chain</span>
+          </div>
+          <div className="space-y-3">
+            {context.whatToInvestigateNext.map((item, idx) => (
+              <div key={item.id} className="p-2.5 bg-surface rounded border border-border/80 space-y-2 text-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-foreground leading-snug">
+                    {idx + 1}. {item.action}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (item.type === "Ask ARGUS" && onAskArgus) {
+                        onAskArgus();
+                      } else if (item.type === "Show in Network" && onFocusGraph) {
+                        onFocusGraph(item.targetId || entity.id);
+                      } else if (item.type === "View Relationship") {
+                        const foundRel = relationships.find((r) => r.id === item.targetId);
+                        if (foundRel) onSelectRelationship(foundRel);
+                      } else if (item.type === "View Timeline") {
+                        window.location.href = `/investigations/${investigationId}/timeline?entityId=${entity.id}`;
+                      } else if (item.type === "View Evidence") {
+                        window.location.href = `/investigations/${investigationId}/evidence-library`;
+                      }
+                    }}
+                    className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded border border-border bg-background hover:bg-surface text-accent hover:border-accent transition-colors"
+                  >
+                    {item.type}
+                  </button>
+                </div>
+
+                {/* Structured Investigation Chain Cards */}
+                <div className="space-y-1 pl-2 border-l-2 border-accent/40 text-[11px] font-mono">
+                  <div className="text-text-secondary">
+                    <span className="text-accent font-semibold">KNOWN:</span> Associated with {entity.label} records in database.
+                  </div>
+                  <div className="text-text-secondary">
+                    <span className="text-amber-500 font-semibold">UNRESOLVED:</span> Operational details or precise purpose requiring analyst check.
+                  </div>
+                  <div className="text-text-secondary">
+                    <span className="text-text-muted font-semibold">NEXT ACTION:</span> {item.action}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Investigation Context */}
       {context && (

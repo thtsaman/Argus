@@ -164,7 +164,29 @@ export function LeadDetail({
         )}
       </div>
 
-      {/* 5. Relationship Verification Actions (if applicable) */}
+      {/* 5. Related Investigation Tasks */}
+      <div className="p-3 bg-background rounded border border-border space-y-2">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+            Investigation Tasks
+          </h4>
+          <button
+            onClick={() => {
+              if (window.location) {
+                window.location.href = `/investigations/${investigationId}?leadId=${lead.id}#tasks`;
+              }
+            }}
+            className="text-[10px] px-2 py-0.5 rounded border border-accent bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors"
+          >
+            + Create Investigation Task
+          </button>
+        </div>
+        <p className="text-xs text-text-secondary leading-relaxed">
+          Create or view evidence-grounded tasks derived from this lead context (preserves Lead ID, Entities: {lead.relatedEntityLabels.join(", ") || "None"}).
+        </p>
+      </div>
+
+      {/* 6. Relationship Verification Actions (if applicable) */}
       {lead.relatedRelationshipId && (
         <div className="p-3 bg-background rounded border border-border space-y-2">
           <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">

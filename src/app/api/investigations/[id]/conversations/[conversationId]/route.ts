@@ -233,11 +233,25 @@ export async function POST(
       }));
     }
 
-    // Always fetch overarching investigation title & description
-    const investigation = await db.investigation.findUnique({
-      where: { id },
-      select: { title: true, description: true, caseNumber: true },
-    });
+    // Always fetch open investigation tasks and overarching investigation details
+    const [tasks, investigation] = await Promise.all([
+      db.investigationTask.findMany({
+        where: { investigationId: id, status: { in: ["OPEN", "IN_PROGRESS", "BLOCKED"] } },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          whyItMatters: true,
+          priority: true,
+          expectedOutcome: true,
+        },
+      }),
+      db.investigation.findUnique({
+        where: { id },
+        select: { title: true, description: true, caseNumber: true },
+      }),
+    ]);
 
     const context = {
       investigation,
@@ -254,6 +268,7 @@ export async function POST(
       relevantEvidence,
       relevantEvents,
       relevantLeads,
+      openInvestigationTasks: tasks,
     };
 
     const { response, error } = await generateExplanation({

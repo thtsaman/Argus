@@ -55,23 +55,167 @@ export async function GET(
     },
   });
 
-  // Calculate "Why this entity matters" based on existing analytical signals
-  const pendingRels = relationships.filter((r) => r.status === "UNDER_REVIEW" || r.status === "AI_SUGGESTED").length;
-  const isMultiCase = investigationCount > 1;
-  const hasBridgeMeta = Boolean((entity.metadata as { bridge?: boolean } | null)?.bridge);
+  // Fetch associated events, candidate findings/leads, and evidence items for deep dynamic analysis
+  const [events, candidateFindings, relationshipLinks] = await Promise.all([
+    db.event.findMany({
+      where: {
+        investigationId: id,
+        entityId,
+      },
+      select: { id: true, title: true, occurredAt: true, location: true },
+    }),
+    db.candidateFinding.findMany({
+      where: {
+        investigationId: id,
+        OR: [
+          { data: { path: ["sourceLabel"], equals: entity.label } },
+          { data: { path: ["targetLabel"], equals: entity.label } },
+        ],
+      },
+      select: { id: true, label: true, description: true, status: true },
+    }),
+    db.relationshipEvidence.findMany({
+      where: {
+        relationship: { OR: [{ sourceId: entityId }, { targetId: entityId }], investigationId: id },
+      },
+      include: {
+        evidence: { select: { id: true, title: true, type: true, source: true } },
+      },
+    }),
+  ]);
 
-  let whyItMatters: string | null = null;
-  if (hasBridgeMeta) {
-    whyItMatters = "Connects multiple investigation clusters based on structural network analysis.";
-  } else if (isMultiCase) {
-    whyItMatters = `Appears across ${investigationCount} separate investigations in the system.`;
-  } else if (pendingRels > 0) {
-    whyItMatters = `Has ${pendingRels} AI-suggested or pending relationship(s) requiring investigator verification.`;
-  } else if (relationships.length >= 4) {
-    whyItMatters = `High network density with ${relationships.length} active relationships connected to key entities.`;
-  } else if (eventsCount > 0) {
-    whyItMatters = `Associated with ${eventsCount} chronological event(s) in this investigation.`;
+  const evidenceItems = Array.from(
+    new Map(relationshipLinks.map((rl) => [rl.evidence.id, rl.evidence])).values()
+  );
+
+  // Extract connected entity labels by type / relationship status
+  const connectedPersons = relationships
+    .map((r) => (r.source.id === entityId ? r.target : r.source))
+    .filter((e) => e.type === "PERSON");
+  const connectedOrgs = relationships
+    .map((r) => (r.source.id === entityId ? r.target : r.source))
+    .filter((e) => e.type === "ORGANIZATION");
+  const verifiedRels = relationships.filter((r) => r.status === "VERIFIED" || r.status === "DIRECT");
+  const pendingRels = relationships.filter((r) => r.status === "UNDER_REVIEW" || r.status === "AI_SUGGESTED");
+
+  // 1. DYNAMIC "WHY THIS ENTITY MATTERS"
+  const whyItMattersParts: string[] = [];
+
+  if (connectedOrgs.length > 0) {
+    const orgNames = Array.from(new Set(connectedOrgs.map((o) => o.label))).join(", ");
+    whyItMattersParts.push(`Recorded connection to organization(s) (${orgNames}).`);
   }
+
+  if (connectedPersons.length > 0) {
+    const personNames = Array.from(new Set(connectedPersons.map((p) => p.label))).join(", ");
+    whyItMattersParts.push(`Direct or inferred communications with ${connectedPersons.length} key person(s) (${personNames}).`);
+  }
+
+  if (events.length > 0) {
+    whyItMattersParts.push(`Associated with ${events.length} chronological event record(s) in this investigation.`);
+  }
+
+  if (pendingRels.length > 0) {
+    whyItMattersParts.push(`Has ${pendingRels.length} unverified AI-suggested link(s) requiring analyst review.`);
+  }
+
+  if (investigationCount > 1) {
+    whyItMattersParts.push(`Cross-case overlap: appears across ${investigationCount} separate investigations.`);
+  }
+
+  whyItMattersParts.push("Note: Observed overlaps justify further investigation, but available evidence does not establish criminal involvement.");
+
+  const whyItMatters = whyItMattersParts.join(" ");
+
+  // 2. DYNAMIC "INVESTIGATION RELEVANCE"
+  const relevanceParts: string[] = [];
+  if (events.length > 0) {
+    const eventTitles = events.slice(0, 3).map((e) => e.title).join("; ");
+    relevanceParts.push(`Appears in event records: ${eventTitles}.`);
+  }
+  if (evidenceItems.length > 0) {
+    const evidenceTitles = evidenceItems.slice(0, 3).map((e) => `"${e.title}"`).join(", ");
+    relevanceParts.push(`Referenced in evidence sources: ${evidenceTitles}.`);
+  }
+  if (relationships.length > 0) {
+    relevanceParts.push(`Maintains ${relationships.length} network connection(s) within the investigation graph.`);
+  }
+  const investigationRelevance = relevanceParts.length > 0 ? relevanceParts.join(" ") : "Appears as an identified entity record in this case.";
+
+  // 3. DYNAMIC "WHAT TO INVESTIGATE NEXT" (3-5 concrete actions with exact types)
+  const whatToInvestigateNext: {
+    id: string;
+    action: string;
+    type: "View Evidence" | "Show in Network" | "View Timeline" | "View Relationship" | "Ask ARGUS";
+    targetId?: string;
+    entityId?: string;
+  }[] = [];
+
+  // Action 1: Communication / Person verification
+  if (connectedPersons.length > 0) {
+    const p = connectedPersons[0];
+    const rel = relationships.find((r) => r.source.id === p.id || r.target.id === p.id);
+    whatToInvestigateNext.push({
+      id: `act-rel-${p.id}`,
+      action: `Review communications and relationship link with ${p.label}.`,
+      type: "View Relationship",
+      targetId: rel?.id,
+    });
+  }
+
+  // Action 2: Evidence review
+  if (evidenceItems.length > 0) {
+    whatToInvestigateNext.push({
+      id: `act-ev-${evidenceItems[0].id}`,
+      action: `Examine primary supporting record "${evidenceItems[0].title}".`,
+      type: "View Evidence",
+      targetId: evidenceItems[0].id,
+    });
+  }
+
+  // Action 3: Timeline / Event verification
+  if (events.length > 0) {
+    whatToInvestigateNext.push({
+      id: `act-ev-timeline`,
+      action: `Verify chronological activity surrounding "${events[0].title}".`,
+      type: "View Timeline",
+      entityId,
+    });
+  } else {
+    whatToInvestigateNext.push({
+      id: `act-timeline-general`,
+      action: `Cross-reference entity activity timestamps against overall investigation timeline.`,
+      type: "View Timeline",
+      entityId,
+    });
+  }
+
+  // Action 4: Unverified leads / Graph focus
+  if (pendingRels.length > 0) {
+    const unverified = pendingRels[0];
+    const otherLabel = unverified.source.id === entityId ? unverified.target.label : unverified.source.label;
+    whatToInvestigateNext.push({
+      id: `act-pending-${unverified.id}`,
+      action: `Verify unconfirmed AI link between ${entity.label} and ${otherLabel}.`,
+      type: "Show in Network",
+      targetId: unverified.id,
+    });
+  } else {
+    whatToInvestigateNext.push({
+      id: `act-graph-focus`,
+      action: `Isolate entity's immediate 1-hop neighborhood in the graph network.`,
+      type: "Show in Network",
+      targetId: entityId,
+    });
+  }
+
+  // Action 5: ARGUS Contextual Deep-Dive
+  whatToInvestigateNext.push({
+    id: `act-argus-query`,
+    action: `Ask ARGUS for evidence-grounded summary of ${entity.label}'s role across all records.`,
+    type: "Ask ARGUS",
+    entityId,
+  });
 
   const context = {
     investigationCount,
@@ -80,6 +224,8 @@ export async function GET(
     eventCount: eventsCount,
     locationCount: entity.type === "LOCATION" ? 1 : 0,
     whyItMatters,
+    investigationRelevance,
+    whatToInvestigateNext: whatToInvestigateNext.slice(0, 5),
   };
 
   return NextResponse.json({ entity, relationships, context });

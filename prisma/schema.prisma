@@ -118,6 +118,7 @@ model User {
   aiInsights     AIInsight[]
   verifiedCandidates CandidateFinding[] @relation("VerifiedBy")
   conversations  Conversation[]
+  tasks          InvestigationTask[]
 }
 
 model Investigation {
@@ -141,6 +142,7 @@ model Investigation {
   aiInsights  AIInsight[]
   candidates  CandidateFinding[]
   conversations Conversation[]
+  tasks       InvestigationTask[]
 }
 
 model Entity {
@@ -159,9 +161,72 @@ model Entity {
   sourceRelations Relationship[] @relation("SourceEntity")
   targetRelations Relationship[] @relation("TargetEntity")
   candidates      CandidateFinding[]
+  tasks           InvestigationTask[]
 
   @@index([investigationId])
   @@index([type])
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  DISMISSED
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TaskSourceType {
+  ARGUS_SUGGESTED
+  LEAD_DERIVED
+  INVESTIGATOR_CREATED
+}
+
+enum TaskConclusionType {
+  CONFIRMED
+  RULED_OUT
+  INCONCLUSIVE
+  FURTHER_INVESTIGATION_REQUIRED
+}
+
+model InvestigationTask {
+  id                    String              @id @default(cuid())
+  investigationId       String
+  investigation         Investigation       @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String
+  whyItMatters          String?
+  priority              TaskPriority        @default(MEDIUM)
+  status                TaskStatus          @default(OPEN)
+  sourceType            TaskSourceType      @default(INVESTIGATOR_CREATED)
+  expectedOutcome       String?
+  investigatorConclusion String?
+  conclusionType        TaskConclusionType?
+  assignedToId          String?
+  assignedTo            User?               @relation(fields: [assignedToId], references: [id])
+  entityId              String?
+  entity                Entity?             @relation(fields: [entityId], references: [id])
+  relationshipId        String?
+  evidenceId            String?
+  leadId                String?
+  eventId               String?
+  parentTaskId          String?
+  parentTask            InvestigationTask?  @relation("TaskFollowUp", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  followUpTasks         InvestigationTask[] @relation("TaskFollowUp")
+  dueDate               DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([investigationId])
+  @@index([status])
+  @@index([priority])
+  @@index([entityId])
 }
 
 model EntityAlias {

@@ -18,11 +18,22 @@ export function PageHeader({
   );
 }
 
-export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <div className="mb-4" suppressHydrationWarning>
-      <h2 className="font-serif text-lg font-medium text-foreground">{title}</h2>
-      {subtitle && <p className="text-sm text-text-muted mt-0.5">{subtitle}</p>}
+    <div className="flex items-start justify-between gap-4 mb-4" suppressHydrationWarning>
+      <div suppressHydrationWarning>
+        <h2 className="font-serif text-lg font-medium text-foreground">{title}</h2>
+        {subtitle && <p className="text-sm text-text-muted mt-0.5">{subtitle}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

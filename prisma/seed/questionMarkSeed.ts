@@ -113,7 +113,7 @@ export async function seedQuestionMark(db: PrismaClient) {
     },
     "08_witness_statements.md": {
       title: "Investigative Witness Statements (01-03)",
-      type: EvidenceType.INTERVIEW,
+      type: EvidenceType.DOCUMENT,
       source: "Field Investigation Witness Transcripts",
       description: "Depositions from warehouse employees, exam staff, and transport depot staff regarding physical observations.",
     },
@@ -565,7 +565,7 @@ export async function seedQuestionMark(db: PrismaClient) {
     {
       evidenceFilename: "07_warehouse_access_logs.csv",
       type: CandidateType.ENTITY,
-      status: CandidateStatus.APPROVED,
+      status: CandidateStatus.VERIFIED,
       label: "Imran Ali (External Service Vendor)",
       description: "Extracted vendor visitor record at SecurePrint Solutions prior to EX-04 dispatch.",
       data: { person: "Imran Ali", location: "SecurePrint Visitor Area", time: "2026-08-17 14:55" },
@@ -599,5 +599,75 @@ export async function seedQuestionMark(db: PrismaClient) {
     }
   }
 
-  console.log(`Successfully seeded Operation Question Mark dataset: ${entityConfigs.length} entities, ${relationshipConfigs.length} relationships, ${eventConfigs.length} events.`);
+  // 8. Create Initial Evidence-Grounded Investigation Tasks for Operation Question Mark
+  const vikramEntityId = entityMap.get("Vikram Sethi");
+  const arjunEntityId = entityMap.get("Arjun Mehta");
+  const acc2098EntityId = entityMap.get("ACC-2098 (Consulting Account)");
+  const vehicleEntityId = entityMap.get("WB12AB1234 (Logistics Van)");
+
+  const taskConfigs = [
+    {
+      title: "Verify the purpose of Vikram Sethi and Arjun Mehta communications around EX-01 and EX-02",
+      description: "Call detail records confirm multiple phone communications between Vikram Sethi and Arjun Mehta during the EX-01 and EX-02 dispatch windows.",
+      whyItMatters: "Communication records confirm contact around two incident periods, but the available evidence does not document the purpose of the communication.",
+      priority: "HIGH" as const,
+      status: "OPEN" as const,
+      sourceType: "ARGUS_SUGGESTED" as const,
+      expectedOutcome: "Determine whether the communication was routine administrative contact or related to examination logistics.",
+      entityId: vikramEntityId,
+      evidenceId: evidenceMap.get("02_call_detail_records.csv"),
+    },
+    {
+      title: "Verify beneficial ownership of ACC-2098",
+      description: "Bank transaction logs reflect pre-incident transfers totaling ₹2.2L into account ACC-2098 prior to the EX-02 incident.",
+      whyItMatters: "Financial activity involving the account occurs near multiple incident periods, but ownership is not independently verified.",
+      priority: "HIGH" as const,
+      status: "OPEN" as const,
+      sourceType: "LEAD_DERIVED" as const,
+      expectedOutcome: "Associate or rule out the account's connection to an investigation entity.",
+      entityId: acc2098EntityId,
+      evidenceId: evidenceMap.get("04_financial_transactions.csv"),
+    },
+    {
+      title: "Verify whether vehicle WB12AB1234 was carrying examination material during the EX-01 logistics window",
+      description: "Toll plaza camera logs record vehicle WB12AB1234 traversing the NH-16 corridor during the EX-01 transit timeframe.",
+      whyItMatters: "Vehicle movement overlaps with relevant examination-material logistics, but current evidence does not establish what was transported.",
+      priority: "MEDIUM" as const,
+      status: "OPEN" as const,
+      sourceType: "ARGUS_SUGGESTED" as const,
+      expectedOutcome: "Confirm or rule out the vehicle's involvement in the documented dispatch activity.",
+      entityId: vehicleEntityId,
+      evidenceId: evidenceMap.get("05_toll_plaza_camera_logs.csv"),
+    },
+    {
+      title: "Compare Vikram Sethi's activity across EX-01, EX-02 and EX-03",
+      description: "Cross-reference entity call logs, site visits, and organizational affiliations surrounding MeritEdge Academy.",
+      whyItMatters: "The entity appears in records surrounding multiple incident periods across West Bengal and Bihar.",
+      priority: "MEDIUM" as const,
+      status: "IN_PROGRESS" as const,
+      sourceType: "INVESTIGATOR_CREATED" as const,
+      expectedOutcome: "Determine whether there is a consistent documented pattern or whether the overlap is coincidental.",
+      entityId: vikramEntityId,
+      evidenceId: evidenceMap.get("01_fir_leak_reports.pdf"),
+    },
+  ];
+
+  for (const t of taskConfigs) {
+    await db.investigationTask.create({
+      data: {
+        investigationId: investigation.id,
+        title: t.title,
+        description: t.description,
+        whyItMatters: t.whyItMatters,
+        priority: t.priority,
+        status: t.status,
+        sourceType: t.sourceType,
+        expectedOutcome: t.expectedOutcome,
+        entityId: t.entityId,
+        evidenceId: t.evidenceId,
+      },
+    });
+  }
+
+  console.log(`Successfully seeded Operation Question Mark dataset: ${entityConfigs.length} entities, ${relationshipConfigs.length} relationships, ${eventConfigs.length} events, ${taskConfigs.length} tasks.`);
 }
