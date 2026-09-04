@@ -102,6 +102,10 @@ enum AuditAction {
   CANDIDATE_REJECTED
   USER_LOGIN
   AUDIT_CHAIN_VERIFIED
+  FINANCIAL_TRACE
+  FINANCIAL_PATH_ANALYSIS
+  FINANCIAL_CSV_SEED
+  FINANCIAL_LAYERING_ANALYSIS
 }
 
 model User {
@@ -143,6 +147,8 @@ model Investigation {
   candidates  CandidateFinding[]
   conversations Conversation[]
   tasks       InvestigationTask[]
+  financialEntities FinancialEntity[]
+  transactions      Transaction[]
 }
 
 model Entity {
@@ -156,12 +162,13 @@ model Entity {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  aliases         EntityAlias[]
-  events          Event[]
-  sourceRelations Relationship[] @relation("SourceEntity")
-  targetRelations Relationship[] @relation("TargetEntity")
-  candidates      CandidateFinding[]
-  tasks           InvestigationTask[]
+  aliases           EntityAlias[]
+  events            Event[]
+  sourceRelations   Relationship[] @relation("SourceEntity")
+  targetRelations   Relationship[] @relation("TargetEntity")
+  candidates        CandidateFinding[]
+  tasks             InvestigationTask[]
+  financialEntities FinancialEntity[]
 
   @@index([investigationId])
   @@index([type])
@@ -214,10 +221,6 @@ model InvestigationTask {
   relationshipId        String?
   evidenceId            String?
   leadId                String?
-  eventId               String?
-  parentTaskId          String?
-  parentTask            InvestigationTask?  @relation("TaskFollowUp", fields: [parentTaskId], references: [id], onDelete: SetNull)
-  followUpTasks         InvestigationTask[] @relation("TaskFollowUp")
   dueDate               DateTime?
   completedAt           DateTime?
   createdAt             DateTime            @default(now())
@@ -227,6 +230,73 @@ model InvestigationTask {
   @@index([status])
   @@index([priority])
   @@index([entityId])
+}
+
+enum FinancialEntityType {
+  BANK_ACCOUNT
+  UPI_ID
+  EXCHANGE
+}
+
+enum AttributionStatus {
+  CASE_LINKED_UNVERIFIED
+  OWNER_UNVERIFIED
+  UNRESOLVED
+  SYSTEM_ENDPOINT
+  VERIFIED
+}
+
+enum FinancialChannel {
+  BANK_TRANSFER
+  UPI
+  CASH
+  OTHER
+}
+
+model FinancialEntity {
+  id                String              @id @default(cuid())
+  investigationId   String
+  investigation     Investigation       @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  type              FinancialEntityType
+  identifier        String
+  label             String
+  linkedEntityId    String?
+  linkedEntity      Entity?             @relation(fields: [linkedEntityId], references: [id], onDelete: SetNull)
+  attributionStatus AttributionStatus   @default(UNRESOLVED)
+  note              String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  sentTransactions     Transaction[] @relation("SenderFinancialEntity")
+  receivedTransactions Transaction[] @relation("ReceiverFinancialEntity")
+
+  @@unique([investigationId, identifier])
+  @@index([investigationId])
+  @@index([linkedEntityId])
+}
+
+model Transaction {
+  id                      String            @id @default(cuid())
+  investigationId         String
+  investigation           Investigation     @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  senderFinancialEntityId String
+  sender                  FinancialEntity   @relation("SenderFinancialEntity", fields: [senderFinancialEntityId], references: [id], onDelete: Cascade)
+  receiverFinancialEntityId String
+  receiver                FinancialEntity   @relation("ReceiverFinancialEntity", fields: [receiverFinancialEntityId], references: [id], onDelete: Cascade)
+  amount                  Decimal           @db.Decimal(14, 2)
+  currency                String            @default("INR")
+  timestamp               DateTime
+  channel                 FinancialChannel  @default(BANK_TRANSFER)
+  purpose                 String?
+  incident                String?
+  sourceEvidenceId        String?
+  sourceEvidence          EvidenceItem?     @relation(fields: [sourceEvidenceId], references: [id], onDelete: SetNull)
+  createdAt               DateTime          @default(now())
+
+  @@index([investigationId])
+  @@index([senderFinancialEntityId])
+  @@index([receiverFinancialEntityId])
+  @@index([timestamp])
 }
 
 model EntityAlias {
@@ -297,6 +367,7 @@ model EvidenceItem {
   relationshipLinks RelationshipEvidence[]
   eventLinks        EventEvidence[]
   candidates        CandidateFinding[]
+  transactions      Transaction[]
 
   @@index([investigationId])
   @@index([status])
