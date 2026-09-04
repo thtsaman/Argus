@@ -30,6 +30,9 @@ export async function seedQuestionMark(db: PrismaClient) {
       await tx.candidateFinding.deleteMany({ where: { investigationId: existingInv.id } });
       await tx.relationshipEvidence.deleteMany({ where: { relationship: { investigationId: existingInv.id } } });
       await tx.eventEvidence.deleteMany({ where: { event: { investigationId: existingInv.id } } });
+      await tx.transaction.deleteMany({ where: { investigationId: existingInv.id } });
+      await tx.financialEntity.deleteMany({ where: { investigationId: existingInv.id } });
+      await tx.investigationTask.deleteMany({ where: { investigationId: existingInv.id } });
       await tx.relationship.deleteMany({ where: { investigationId: existingInv.id } });
       await tx.event.deleteMany({ where: { investigationId: existingInv.id } });
       await tx.entityAlias.deleteMany({ where: { entity: { investigationId: existingInv.id } } });
@@ -667,6 +670,125 @@ export async function seedQuestionMark(db: PrismaClient) {
         evidenceId: t.evidenceId,
       },
     });
+  }
+
+  // 9. Import and seed Financial Trail dataset from operation_question_mark_financial_seed.json
+  const financialSeedPath = path.join(process.cwd(), "prisma", "seed", "questionMark", "operation_question_mark_financial_seed.json");
+  if (fs.existsSync(financialSeedPath)) {
+    const rawFin = fs.readFileSync(financialSeedPath, "utf-8");
+    const finData = JSON.parse(rawFin);
+
+    // Create synthetic evidence references for financial ledgers
+    const finEvidenceMap = new Map<string, string>();
+    for (const ref of finData.evidence_refs || []) {
+      const createdEvidence = await db.evidenceItem.create({
+        data: {
+          investigationId: investigation.id,
+          title: ref.title,
+          description: ref.description,
+          type: EvidenceType.FINANCIAL,
+          status: EvidenceStatus.EXTRACTED,
+          source: `Synthetic Financial Ledger (${ref.incident})`,
+          fileName: `${ref.key}.csv`,
+          normalizedContent: `Financial ledger transaction extract for incident ${ref.incident}. Supporting money flow analysis.`,
+        },
+      });
+      finEvidenceMap.set(ref.key, createdEvidence.id);
+    }
+
+    // Seed Financial Entities
+    const finEntityDbMap = new Map<string, string>();
+    for (const fe of finData.financial_entities || []) {
+      let linkedEntityId: string | null = null;
+      if (fe.linkedPerson) {
+        linkedEntityId = entityMap.get(fe.linkedPerson) || null;
+      }
+
+      const createdFe = await db.financialEntity.create({
+        data: {
+          investigationId: investigation.id,
+          type: fe.type as any,
+          identifier: fe.identifier,
+          label: fe.label,
+          linkedEntityId,
+          attributionStatus: fe.attributionStatus as any,
+          note: fe.note,
+        },
+      });
+      finEntityDbMap.set(fe.key, createdFe.id);
+    }
+
+    // Seed Transactions
+    for (const tx of finData.transactions || []) {
+      const senderId = finEntityDbMap.get(tx.from);
+      const receiverId = finEntityDbMap.get(tx.to);
+
+      if (senderId && receiverId) {
+        await db.transaction.create({
+          data: {
+            id: tx.id,
+            investigationId: investigation.id,
+            senderFinancialEntityId: senderId,
+            receiverFinancialEntityId: receiverId,
+            amount: tx.amount,
+            currency: tx.currency || "INR",
+            timestamp: new Date(tx.timestamp),
+            channel: tx.channel as any,
+            purpose: tx.purpose,
+            incident: tx.incident,
+            sourceEvidenceId: tx.evidenceRef ? finEvidenceMap.get(tx.evidenceRef) || null : null,
+          },
+        });
+      }
+    }
+
+    // Seed Financial Signals as Candidate Findings
+    for (const sig of finData.derived_demo_signals || []) {
+      const anchorFeId = sig.anchorEntity ? finEntityDbMap.get(sig.anchorEntity) : null;
+      const primaryEvidenceId = Array.from(finEvidenceMap.values())[0] || null;
+
+      if (primaryEvidenceId) {
+        await db.candidateFinding.create({
+          data: {
+            investigationId: investigation.id,
+            evidenceId: primaryEvidenceId,
+            type: CandidateType.RELATIONSHIP,
+            status: CandidateStatus.PENDING,
+            confidence: 0.90,
+            label: sig.title,
+            description: sig.explanation,
+            sourceExcerpt: sig.doNotClaim,
+            data: {
+              signalKey: sig.key,
+              type: sig.type,
+              priority: sig.priority,
+              anchorTransaction: sig.anchorTransaction || null,
+              anchorEntity: sig.anchorEntity || null,
+              anchorFinancialEntityId: anchorFeId || null,
+            },
+          },
+        });
+      }
+    }
+
+    // Seed Financial Tasks
+    for (const ft of finData.investigation_tasks || []) {
+      await db.investigationTask.create({
+        data: {
+          investigationId: investigation.id,
+          title: ft.title,
+          description: ft.whyItMatters,
+          whyItMatters: ft.whyItMatters,
+          priority: ft.priority as any,
+          status: ft.status as any,
+          sourceType: "ARGUS_SUGGESTED",
+          expectedOutcome: ft.expectedOutcome,
+          entityId: acc2098EntityId || null,
+        },
+      });
+    }
+
+    console.log(`Seeded Financial Trail: ${finData.financial_entities?.length || 0} financial entities, ${finData.transactions?.length || 0} transactions, ${finData.derived_demo_signals?.length || 0} signals.`);
   }
 
   console.log(`Successfully seeded Operation Question Mark dataset: ${entityConfigs.length} entities, ${relationshipConfigs.length} relationships, ${eventConfigs.length} events, ${taskConfigs.length} tasks.`);

@@ -1,0 +1,587 @@
+{
+  "dataset": {
+    "name": "Operation Question Mark — Financial Trail Demo Dataset",
+    "version": "1.0",
+    "synthetic": true,
+    "purpose": "Rich synthetic bank/UPI-style financial data for the existing Operation Question Mark investigation. Do not create new application users."
+  },
+  "investigation_match": {
+    "name": "Operation Question Mark",
+    "match_strategy": "Find the existing investigation by name; never create a duplicate Question Mark investigation."
+  },
+  "entity_policy": {
+    "existing_people_to_reuse": [
+      "Arjun Mehta",
+      "Vikram Sethi",
+      "Neha Sharma",
+      "Rahul Verma",
+      "Karan Das",
+      "Sana Khan",
+      "Rohan Gupta",
+      "Meera Iyer",
+      "Aakash Roy",
+      "Nitin Das",
+      "Pooja Sen",
+      "Imran Ali"
+    ],
+    "existing_account_objects_to_reuse": [
+      "ACC-1042",
+      "ACC-2098",
+      "ACC-3181",
+      "ACC-4420"
+    ],
+    "do_not_create_users": true,
+    "do_not_duplicate_people": true,
+    "do_not_auto_assert_account_ownership": true
+  },
+  "financial_entities": [
+    {
+      "key": "ACC-1042",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-1042",
+      "label": "ACC-1042",
+      "linkedPerson": "Rahul Verma",
+      "attributionStatus": "CASE_LINKED_UNVERIFIED",
+      "note": "Existing case account reference."
+    },
+    {
+      "key": "ACC-2098",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-2098",
+      "label": "ACC-2098",
+      "linkedPerson": null,
+      "attributionStatus": "OWNER_UNVERIFIED",
+      "note": "Important unresolved account from the existing case."
+    },
+    {
+      "key": "ACC-3181",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-3181",
+      "label": "ACC-3181",
+      "linkedPerson": "Arjun Mehta",
+      "attributionStatus": "CASE_LINKED_UNVERIFIED",
+      "note": "Existing logistics-related payment account reference."
+    },
+    {
+      "key": "ACC-4420",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-4420",
+      "label": "ACC-4420",
+      "linkedPerson": "Karan Das",
+      "attributionStatus": "CASE_LINKED_UNVERIFIED",
+      "note": "Existing logistics-related payment account reference."
+    },
+    {
+      "key": "ACC-5714",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-5714",
+      "label": "ACC-5714",
+      "linkedPerson": null,
+      "attributionStatus": "UNRESOLVED",
+      "note": "Synthetic intermediary account."
+    },
+    {
+      "key": "ACC-6832",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-6832",
+      "label": "ACC-6832",
+      "linkedPerson": null,
+      "attributionStatus": "UNRESOLVED",
+      "note": "Synthetic intermediary account."
+    },
+    {
+      "key": "UPI-OPS-118",
+      "type": "UPI_ID",
+      "identifier": "opsdesk118@upi",
+      "label": "opsdesk118@upi",
+      "linkedPerson": "Sana Khan",
+      "attributionStatus": "CASE_LINKED_UNVERIFIED",
+      "note": "Synthetic UPI identifier linked to an existing case person for demonstration."
+    },
+    {
+      "key": "UPI-ROUTE-204",
+      "type": "UPI_ID",
+      "identifier": "route204@upi",
+      "label": "route204@upi",
+      "linkedPerson": null,
+      "attributionStatus": "UNRESOLVED",
+      "note": "Synthetic routing/intermediary UPI identifier."
+    },
+    {
+      "key": "ACC-7745",
+      "type": "BANK_ACCOUNT",
+      "identifier": "ACC-7745",
+      "label": "ACC-7745",
+      "linkedPerson": null,
+      "attributionStatus": "UNRESOLVED",
+      "note": "Synthetic intermediary account."
+    },
+    {
+      "key": "EXCHANGE-DEMO-01",
+      "type": "EXCHANGE",
+      "identifier": "DEMO-EXCHANGE-01",
+      "label": "Eastern Exchange Desk",
+      "linkedPerson": null,
+      "attributionStatus": "SYSTEM_ENDPOINT",
+      "note": "Synthetic terminal endpoint, not a real organization."
+    }
+  ],
+  "transactions": [
+    {
+      "id": "TX-QM-001",
+      "from": "ACC-1042",
+      "to": "ACC-3181",
+      "amount": 18500,
+      "currency": "INR",
+      "timestamp": "2026-02-12T11:18:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Printing logistics payment",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-002",
+      "from": "ACC-3181",
+      "to": "ACC-2098",
+      "amount": 850000,
+      "currency": "INR",
+      "timestamp": "2026-02-13T14:06:00+05:30",
+      "channel": "UPI",
+      "purpose": "Unclear high-value transfer",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-003",
+      "from": "ACC-2098",
+      "to": "ACC-5714",
+      "amount": 420000,
+      "currency": "INR",
+      "timestamp": "2026-02-13T15:11:00+05:30",
+      "channel": "UPI",
+      "purpose": "Outgoing transfer after receipt",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-004",
+      "from": "ACC-2098",
+      "to": "ACC-6832",
+      "amount": 265000,
+      "currency": "INR",
+      "timestamp": "2026-02-13T16:02:00+05:30",
+      "channel": "UPI",
+      "purpose": "Outgoing transfer after receipt",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-005",
+      "from": "ACC-2098",
+      "to": "ACC-7745",
+      "amount": 115000,
+      "currency": "INR",
+      "timestamp": "2026-02-13T17:24:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Outgoing transfer after receipt",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-006",
+      "from": "ACC-5714",
+      "to": "ACC-6832",
+      "amount": 395000,
+      "currency": "INR",
+      "timestamp": "2026-02-13T18:02:00+05:30",
+      "channel": "UPI",
+      "purpose": "Rapid onward movement",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-007",
+      "from": "ACC-6832",
+      "to": "EXCHANGE-DEMO-01",
+      "amount": 640000,
+      "currency": "INR",
+      "timestamp": "2026-02-13T19:41:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Terminal transfer to exchange/cash-out endpoint",
+      "incident": "EX-01",
+      "evidenceRef": "financial-ledger-ex01"
+    },
+    {
+      "id": "TX-QM-008",
+      "from": "ACC-1042",
+      "to": "ACC-4420",
+      "amount": 24000,
+      "currency": "INR",
+      "timestamp": "2026-04-20T10:22:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Transport service payment",
+      "incident": "EX-02",
+      "evidenceRef": "financial-ledger-ex02"
+    },
+    {
+      "id": "TX-QM-009",
+      "from": "ACC-4420",
+      "to": "ACC-2098",
+      "amount": 125000,
+      "currency": "INR",
+      "timestamp": "2026-04-21T12:48:00+05:30",
+      "channel": "UPI",
+      "purpose": "Service-related transfer",
+      "incident": "EX-02",
+      "evidenceRef": "financial-ledger-ex02"
+    },
+    {
+      "id": "TX-QM-010",
+      "from": "UPI-OPS-118",
+      "to": "ACC-2098",
+      "amount": 275000,
+      "currency": "INR",
+      "timestamp": "2026-04-21T13:26:00+05:30",
+      "channel": "UPI",
+      "purpose": "Operational payment; purpose not independently verified",
+      "incident": "EX-02",
+      "evidenceRef": "financial-ledger-ex02"
+    },
+    {
+      "id": "TX-QM-011",
+      "from": "ACC-2098",
+      "to": "ACC-5714",
+      "amount": 190000,
+      "currency": "INR",
+      "timestamp": "2026-04-21T14:09:00+05:30",
+      "channel": "UPI",
+      "purpose": "Rapid onward movement",
+      "incident": "EX-02",
+      "evidenceRef": "financial-ledger-ex02"
+    },
+    {
+      "id": "TX-QM-012",
+      "from": "ACC-2098",
+      "to": "ACC-6832",
+      "amount": 165000,
+      "currency": "INR",
+      "timestamp": "2026-04-21T14:44:00+05:30",
+      "channel": "UPI",
+      "purpose": "Rapid onward movement",
+      "incident": "EX-02",
+      "evidenceRef": "financial-ledger-ex02"
+    },
+    {
+      "id": "TX-QM-013",
+      "from": "ACC-5714",
+      "to": "EXCHANGE-DEMO-01",
+      "amount": 175000,
+      "currency": "INR",
+      "timestamp": "2026-04-21T16:03:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Terminal transfer",
+      "incident": "EX-02",
+      "evidenceRef": "financial-ledger-ex02"
+    },
+    {
+      "id": "TX-QM-014",
+      "from": "ACC-1042",
+      "to": "ACC-4420",
+      "amount": 32000,
+      "currency": "INR",
+      "timestamp": "2026-07-08T09:17:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Transport invoice payment",
+      "incident": "EX-03",
+      "evidenceRef": "financial-ledger-ex03"
+    },
+    {
+      "id": "TX-QM-015",
+      "from": "ACC-4420",
+      "to": "UPI-ROUTE-204",
+      "amount": 180000,
+      "currency": "INR",
+      "timestamp": "2026-07-08T13:42:00+05:30",
+      "channel": "UPI",
+      "purpose": "Routing payment; purpose not independently verified",
+      "incident": "EX-03",
+      "evidenceRef": "financial-ledger-ex03"
+    },
+    {
+      "id": "TX-QM-016",
+      "from": "UPI-ROUTE-204",
+      "to": "ACC-2098",
+      "amount": 172000,
+      "currency": "INR",
+      "timestamp": "2026-07-08T15:04:00+05:30",
+      "channel": "UPI",
+      "purpose": "Incoming transfer before incident period",
+      "incident": "EX-03",
+      "evidenceRef": "financial-ledger-ex03"
+    },
+    {
+      "id": "TX-QM-017",
+      "from": "ACC-2098",
+      "to": "ACC-7745",
+      "amount": 160000,
+      "currency": "INR",
+      "timestamp": "2026-07-08T16:21:00+05:30",
+      "channel": "UPI",
+      "purpose": "Rapid onward movement",
+      "incident": "EX-03",
+      "evidenceRef": "financial-ledger-ex03"
+    },
+    {
+      "id": "TX-QM-018",
+      "from": "ACC-7745",
+      "to": "EXCHANGE-DEMO-01",
+      "amount": 152000,
+      "currency": "INR",
+      "timestamp": "2026-07-08T18:05:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Terminal transfer",
+      "incident": "EX-03",
+      "evidenceRef": "financial-ledger-ex03"
+    },
+    {
+      "id": "TX-QM-019",
+      "from": "ACC-1042",
+      "to": "ACC-3181",
+      "amount": 21000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T11:05:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Printing logistics payment",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-020",
+      "from": "ACC-3181",
+      "to": "ACC-2098",
+      "amount": 680000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T16:18:00+05:30",
+      "channel": "UPI",
+      "purpose": "High-value transfer near incident period",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-021",
+      "from": "ACC-2098",
+      "to": "ACC-5714",
+      "amount": 335000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T17:03:00+05:30",
+      "channel": "UPI",
+      "purpose": "Rapid onward movement",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-022",
+      "from": "ACC-2098",
+      "to": "ACC-6832",
+      "amount": 210000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T17:29:00+05:30",
+      "channel": "UPI",
+      "purpose": "Rapid onward movement",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-023",
+      "from": "ACC-5714",
+      "to": "ACC-7745",
+      "amount": 300000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T18:11:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Multi-hop movement",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-024",
+      "from": "ACC-6832",
+      "to": "EXCHANGE-DEMO-01",
+      "amount": 195000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T19:02:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Terminal transfer",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-025",
+      "from": "ACC-7745",
+      "to": "EXCHANGE-DEMO-01",
+      "amount": 275000,
+      "currency": "INR",
+      "timestamp": "2026-08-17T19:16:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Terminal transfer",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-026",
+      "from": "Rohan Gupta",
+      "to": "ACC-1042",
+      "amount": 28000,
+      "currency": "INR",
+      "timestamp": "2026-08-18T12:15:00+05:30",
+      "channel": "BANK_TRANSFER",
+      "purpose": "Routine administrative reimbursement",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    },
+    {
+      "id": "TX-QM-027",
+      "from": "ACC-4420",
+      "to": "Nitin Das",
+      "amount": 14500,
+      "currency": "INR",
+      "timestamp": "2026-08-18T12:44:00+05:30",
+      "channel": "UPI",
+      "purpose": "Vehicle scheduling expense",
+      "incident": "EX-04",
+      "evidenceRef": "financial-ledger-ex04"
+    }
+  ],
+  "derived_demo_signals": [
+    {
+      "key": "SIG-QM-01",
+      "type": "UNUSUALLY_LARGE_TRANSFER",
+      "priority": "HIGH",
+      "anchorTransaction": "TX-QM-002",
+      "title": "High-value transfer into ACC-2098",
+      "explanation": "₹8.50 lakh moved from ACC-3181 to ACC-2098 one day before EX-01; it is materially larger than routine logistics payments in this seed dataset.",
+      "doNotClaim": "Do not label this laundering, fraud, or criminal payment."
+    },
+    {
+      "key": "SIG-QM-02",
+      "type": "MULTI_SOURCE_CONVERGENCE",
+      "priority": "HIGH",
+      "anchorEntity": "ACC-2098",
+      "title": "Multiple sources converge on ACC-2098",
+      "explanation": "ACC-2098 receives funds from multiple accounts/UPI identifiers across incident periods and sends funds onward shortly afterward.",
+      "doNotClaim": "Candidate financial pattern, not proof of a mule account."
+    },
+    {
+      "key": "SIG-QM-03",
+      "type": "RAPID_OUTWARD_MOVEMENT",
+      "priority": "HIGH",
+      "anchorEntity": "ACC-2098",
+      "title": "Rapid onward movement after receipt",
+      "explanation": "Several incoming payments to ACC-2098 are followed by multiple outgoing transfers during the same incident windows.",
+      "doNotClaim": "Do not infer intent from timing alone."
+    },
+    {
+      "key": "SIG-QM-04",
+      "type": "POTENTIAL_INTERMEDIARY",
+      "priority": "MEDIUM",
+      "anchorEntity": "ACC-5714",
+      "title": "ACC-5714 sits between incoming and terminal flows",
+      "explanation": "ACC-5714 receives from ACC-2098 and subsequently routes funds onward, making it structurally useful to inspect as an intermediary.",
+      "doNotClaim": "Use 'potential intermediary' or 'candidate layering node', never confirmed 'mule'."
+    },
+    {
+      "key": "SIG-QM-05",
+      "type": "EXIT_POINT",
+      "priority": "MEDIUM",
+      "anchorEntity": "EXCHANGE-DEMO-01",
+      "title": "Multiple trails converge on terminal endpoint",
+      "explanation": "Several paths terminate at the synthetic exchange endpoint, making it useful for Trace Forward and path analysis.",
+      "doNotClaim": "Synthetic endpoint; not a real exchange allegation."
+    },
+    {
+      "key": "SIG-QM-06",
+      "type": "CROSS_INCIDENT_REUSE",
+      "priority": "HIGH",
+      "anchorEntity": "ACC-2098",
+      "title": "Same account recurs across four incident windows",
+      "explanation": "ACC-2098 participates in financial activity around EX-01, EX-02, EX-03 and EX-04, creating a cross-incident investigative question.",
+      "doNotClaim": "Recurrence alone does not establish a common organizer."
+    }
+  ],
+  "investigation_tasks": [
+    {
+      "key": "TASK-QM-FIN-01",
+      "title": "Verify the beneficial owner of ACC-2098",
+      "priority": "HIGH",
+      "status": "OPEN",
+      "whyItMatters": "ACC-2098 recurs across multiple incident periods and participates in several inbound/outbound flows.",
+      "expectedOutcome": "Confirmed ownership, ruled-out ownership, or an explicit unresolved ownership finding.",
+      "source": "SIG-QM-06"
+    },
+    {
+      "key": "TASK-QM-FIN-02",
+      "title": "Trace the ₹8.50 lakh EX-01 transfer",
+      "priority": "HIGH",
+      "status": "OPEN",
+      "whyItMatters": "The transfer from ACC-3181 to ACC-2098 is substantially larger than routine logistics payments in this dataset and occurs one day before EX-01.",
+      "expectedOutcome": "Establish upstream source, downstream destinations, and whether the payment has a documented operational explanation.",
+      "source": "SIG-QM-01"
+    },
+    {
+      "key": "TASK-QM-FIN-03",
+      "title": "Review rapid onward movement from ACC-2098",
+      "priority": "HIGH",
+      "status": "OPEN",
+      "whyItMatters": "Multiple incoming payments are followed by several outgoing transfers during the same incident windows.",
+      "expectedOutcome": "Determine whether movement has a documented business/logistics purpose or remains unexplained.",
+      "source": "SIG-QM-03"
+    },
+    {
+      "key": "TASK-QM-FIN-04",
+      "title": "Compare financial activity with EX-01 to EX-04 timelines",
+      "priority": "MEDIUM",
+      "status": "OPEN",
+      "whyItMatters": "The same financial entities recur near multiple incident dates.",
+      "expectedOutcome": "Timeline comparison showing meaningful overlaps, normal recurring payments, and unresolved gaps.",
+      "source": "SIG-QM-06"
+    }
+  ],
+  "evidence_refs": [
+    {
+      "key": "financial-ledger-ex01",
+      "incident": "EX-01",
+      "title": "Financial ledger extract — EX-01",
+      "description": "Synthetic bank/UPI ledger rows supporting the EX-01 financial trail."
+    },
+    {
+      "key": "financial-ledger-ex02",
+      "incident": "EX-02",
+      "title": "Financial ledger extract — EX-02",
+      "description": "Synthetic bank/UPI ledger rows supporting the EX-02 financial trail."
+    },
+    {
+      "key": "financial-ledger-ex03",
+      "incident": "EX-03",
+      "title": "Financial ledger extract — EX-03",
+      "description": "Synthetic bank/UPI ledger rows supporting the EX-03 financial trail."
+    },
+    {
+      "key": "financial-ledger-ex04",
+      "incident": "EX-04",
+      "title": "Financial ledger extract — EX-04",
+      "description": "Synthetic bank/UPI ledger rows supporting the EX-04 financial trail."
+    }
+  ],
+  "ui_demo_sequence": [
+    "Select Vikram Sethi or Arjun Mehta in Key Network.",
+    "Open Financial Trail / View Financial History.",
+    "Show selected entity financial activity and related accounts.",
+    "Highlight the ₹8.50 lakh EX-01 transfer.",
+    "Open transaction detail and show source/evidence context.",
+    "Trace Forward from ACC-2098.",
+    "Animate the rupee marker along each actual transaction edge.",
+    "Reveal intermediary accounts and the terminal endpoint.",
+    "Open the signal explanation and Ask ARGUS with the same context.",
+    "Add the relevant finding to Investigation Tasks."
+  ]
+}
