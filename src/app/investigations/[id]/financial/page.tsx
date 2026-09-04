@@ -63,17 +63,23 @@ export default function FinancialTrailPage() {
   // Filters & selection
   const [selectedFeId, setSelectedFeId] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [hoveredTxId, setHoveredTxId] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<any | null>(null);
+  const [hoveredNodePos, setHoveredNodePos] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredTxPos, setHoveredTxPos] = useState<{ x: number; y: number } | null>(null);
+
   const [selectedIncident, setSelectedIncident] = useState<string>("ALL");
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const [pathTxIds, setPathTxIds] = useState<Set<string>>(new Set());
 
   // Money movement rupee animation state
   const [animatingTxId, setAnimatingTxId] = useState<string | null>(null);
-  const [rupeePosition, setRupeePosition] = useState<{ x: number; y: number } | null>(null);
+  const [animProgress, setAnimProgress] = useState<number>(0);
   const [pulsingNodeId, setPulsingNodeId] = useState<string | null>(null);
   const [showContextualChat, setShowContextualChat] = useState(false);
 
   const graphRef = useRef<any>(null);
+  const animFrameRef = useRef<number | null>(null);
 
   // Fetch initial financial dataset
   useEffect(() => {
@@ -128,60 +134,129 @@ export default function FinancialTrailPage() {
         target: tx.receiverFinancialEntityId,
         amount: tx.amount,
         incident: tx.incident,
+        timestamp: tx.timestamp,
+        channel: tx.channel,
+        senderIdentifier: tx.sender?.identifier,
+        receiverIdentifier: tx.receiver?.identifier,
       }));
 
     return { nodes: Array.from(nodesMap.values()), links };
   }, [financialEntities, filteredTxs]);
 
+  // Apply layout force simulation configs and fitView on load
+  useEffect(() => {
+    if (!graphRef.current || graphData.nodes.length === 0) return;
+
+    // Adjust forces for spacious layout
+    const fg = graphRef.current;
+    fg.d3Force("charge")?.strength(-450);
+    fg.d3Force("link")?.distance(140);
+
+    const timer = setTimeout(() => {
+      fg.zoomToFit(400, 60);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [graphData]);
+
   // Trace Back / Trace Forward helper
-  const handleTrace = async (direction: "forward" | "back") => {
+  const handleTrace = useCallback(async (direction: "forward" | "back") => {
     if (!selectedFeId) return;
-    const res = await fetch(`/api/investigations/${id}/financial/trace?nodeKey=${selectedFeId}&direction=${direction}`);
-    const data = await res.json();
-    if (data.edges) {
-      const edgeIds = new Set<string>(data.edges.map((e: any) => e.id));
-      setPathTxIds(edgeIds);
-      const nodeIds = new Set<string>(data.nodes.map((n: any) => n.id));
-      setHighlightedPath(Array.from(nodeIds));
-    }
-  };
 
-  // Find Path between selected accounts
-  const handleFindPath = async (fromId: string, toId: string) => {
-    const res = await fetch(`/api/investigations/${id}/financial/trace?from=${fromId}&to=${toId}`);
-    const data = await res.json();
-    if (data.edges) {
-      const edgeIds = new Set<string>(data.edges.map((e: any) => e.id));
-      setPathTxIds(edgeIds);
-      const nodeIds = new Set<string>(data.nodes.map((n: any) => n.id));
-      setHighlightedPath(Array.from(nodeIds));
-    }
-  };
+    // Direct multi-hop BFS traversal on full transaction dataset
+    const visitedNodes = new Set<string>([selectedFeId]);
+    const matchedTxIds = new Set<string>();
 
-  // Follow Money - Rupee Animation along transaction edges
+    const queue: string[] = [selectedFeId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const connectedTxs = transactions.filter((tx) =>
+        direction === "back"
+          ? tx.receiverFinancialEntityId === currentId
+          : tx.senderFinancialEntityId === currentId
+      );
+
+      for (const tx of connectedTxs) {
+        matchedTxIds.add(tx.id);
+        const nextId = direction === "back" ? tx.senderFinancialEntityId : tx.receiverFinancialEntityId;
+        if (!visitedNodes.has(nextId)) {
+          visitedNodes.add(nextId);
+          queue.push(nextId);
+        }
+      }
+    }
+
+    if (matchedTxIds.size > 0) {
+      setPathTxIds(matchedTxIds);
+      setHighlightedPath(Array.from(visitedNodes));
+      const firstTx = transactions.find((t) => matchedTxIds.has(t.id));
+      if (firstTx) setSelectedTx(firstTx);
+    }
+  }, [selectedFeId, transactions]);
+
+  // State to track current transaction during animation for header date sync
+  const [activeAnimTx, setActiveAnimTx] = useState<Transaction | null>(null);
+
+  // Follow Money - Precise Rupee Animation along transaction edges
   const handleFollowMoney = useCallback(async () => {
     const txList = pathTxIds.size > 0 
       ? transactions.filter((t) => pathTxIds.has(t.id))
-      : filteredTxs.slice(0, 5);
+      : filteredTxs;
 
     if (txList.length === 0) return;
 
     for (const tx of txList) {
       setAnimatingTxId(tx.id);
       setSelectedTx(tx);
-      setPulsingNodeId(tx.receiverFinancialEntityId);
+      setActiveAnimTx(tx);
+      setAnimProgress(0);
 
-      // Animate step delay
-      await new Promise((r) => setTimeout(r, 1200));
-      setPulsingNodeId(null);
+      const duration = 1500; // ms for single hop travel
+      const startTime = performance.now();
+
+      await new Promise<void>((resolve) => {
+        const animateStep = (now: number) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          setAnimProgress(progress);
+
+          if (progress < 1) {
+            animFrameRef.current = requestAnimationFrame(animateStep);
+          } else {
+            setPulsingNodeId(tx.receiverFinancialEntityId);
+            setTimeout(() => {
+              setPulsingNodeId(null);
+              resolve();
+            }, 400);
+          }
+        };
+        animFrameRef.current = requestAnimationFrame(animateStep);
+      });
     }
     setAnimatingTxId(null);
+    setActiveAnimTx(null);
+    setAnimProgress(0);
   }, [pathTxIds, transactions, filteredTxs]);
 
   const selectedFe = useMemo(
     () => financialEntities.find((f) => f.id === selectedFeId),
     [financialEntities, selectedFeId]
   );
+
+  // Active Date Header context derived from active animation tx, selected transaction, or first filtered tx
+  const activeHeaderContext = useMemo(() => {
+    const activeTx = activeAnimTx || selectedTx || (animatingTxId ? transactions.find((t) => t.id === animatingTxId) : filteredTxs[0]);
+    if (activeTx) {
+      const dateStr = new Date(activeTx.timestamp).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+      return `${dateStr} · ${activeTx.incident || "EX-04"} · Active Financial Activity`;
+    }
+    return "17 Aug 2026 · EX-04 · Active Financial Activity";
+  }, [activeAnimTx, selectedTx, animatingTxId, transactions, filteredTxs]);
 
   if (loading) return <div className="p-8"><LoadingState message="Loading Financial Trail..." /></div>;
 
@@ -193,29 +268,42 @@ export default function FinancialTrailPage() {
         description="Trace synthetic bank and UPI money movements, identify candidate intermediary accounts, and link financial activity to incident windows."
         actions={
           <div className="flex items-center gap-2">
+            {selectedFeId && (
+              <button
+                onClick={() => {
+                  setSelectedFeId(null);
+                  setSelectedTx(null);
+                  setHighlightedPath([]);
+                  setPathTxIds(new Set());
+                }}
+                className="text-xs px-3 py-1.5 rounded border border-border bg-surface hover:bg-background text-text-secondary font-medium transition-colors"
+              >
+                Clear Selection
+              </button>
+            )}
             <button
               onClick={() => handleTrace("back")}
               disabled={!selectedFeId}
-              className="text-xs px-3 py-1.5 rounded border border-border bg-surface hover:bg-background disabled:opacity-40 text-foreground font-medium transition-colors"
+              className="text-xs px-3 py-1.5 rounded border border-border bg-surface-elevated hover:bg-surface text-foreground font-semibold shadow-xs disabled:opacity-40 disabled:hover:bg-surface-elevated transition-colors flex items-center gap-1"
             >
-              ← Trace Back
+              <span>←</span> Trace Back
             </button>
             <button
               onClick={() => handleTrace("forward")}
               disabled={!selectedFeId}
-              className="text-xs px-3 py-1.5 rounded border border-border bg-surface hover:bg-background disabled:opacity-40 text-foreground font-medium transition-colors"
+              className="text-xs px-3 py-1.5 rounded border border-border bg-surface-elevated hover:bg-surface text-foreground font-semibold shadow-xs disabled:opacity-40 disabled:hover:bg-surface-elevated transition-colors flex items-center gap-1"
             >
-              Trace Forward →
+              Trace Forward <span>→</span>
             </button>
             <button
               onClick={handleFollowMoney}
-              className="text-xs px-3.5 py-1.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold hover:bg-emerald-500/30 transition-colors flex items-center gap-1.5"
+              className="text-xs px-3.5 py-1.5 rounded bg-emerald-700 text-white font-semibold shadow-xs hover:bg-emerald-800 transition-colors flex items-center gap-1.5"
             >
-              <span>₹</span> Follow Money
+              <span className="font-bold">₹</span> Follow Money
             </button>
             <button
               onClick={() => setShowContextualChat((prev) => !prev)}
-              className="text-xs px-3 py-1.5 rounded bg-accent/20 border border-accent/40 text-accent font-semibold hover:bg-accent/30 transition-colors"
+              className="text-xs px-3 py-1.5 rounded border border-accent/40 bg-accent/10 text-accent font-semibold hover:bg-accent/20 transition-colors"
             >
               ✨ Ask ARGUS
             </button>
@@ -279,76 +367,199 @@ export default function FinancialTrailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Central Financial Graph (2 Cols) */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="h-[600px] rounded-lg overflow-hidden border border-border relative surface">
+          <div className="h-[620px] rounded-lg overflow-hidden border border-border relative bg-surface shadow-xs">
+            {/* Top Date Header Strip inside Graph Panel */}
+            <div className="absolute top-3 left-4 z-20 px-3 py-1.5 rounded bg-surface-elevated/90 border border-border/80 text-xs font-mono text-foreground font-semibold shadow-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              {activeHeaderContext}
+            </div>
+
+            {/* Hover Tooltip for Nodes & Edges */}
+            {hoveredNode && hoveredNodePos && (
+              <div
+                style={{ left: hoveredNodePos.x + 12, top: hoveredNodePos.y + 12 }}
+                className="absolute z-30 pointer-events-none p-2.5 bg-surface-elevated border border-border rounded shadow-md text-xs font-mono space-y-1"
+              >
+                <div className="font-bold text-foreground">{hoveredNode.label}</div>
+                <div className="text-[11px] text-text-secondary">Type: {hoveredNode.type}</div>
+                <div className="text-[10px] text-text-muted">{hoveredNode.attributionStatus}</div>
+              </div>
+            )}
+
+            {hoveredTxPos && hoveredTxId && (
+              <div
+                style={{ left: hoveredTxPos.x + 12, top: hoveredTxPos.y + 12 }}
+                className="absolute z-30 pointer-events-none p-2.5 bg-surface-elevated border border-border rounded shadow-md text-xs font-mono space-y-1"
+              >
+                {(() => {
+                  const tx = transactions.find((t) => t.id === hoveredTxId);
+                  if (!tx) return null;
+                  return (
+                    <>
+                      <div className="font-bold text-emerald-400">₹{(Number(tx.amount) / 100000).toFixed(2)} Lakh</div>
+                      <div className="text-[11px] text-foreground">{tx.sender?.identifier} → {tx.receiver?.identifier}</div>
+                      <div className="text-[10px] text-text-muted">{new Date(tx.timestamp).toLocaleDateString("en-IN")} · {tx.channel}</div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
             <ForceGraph2D
               ref={graphRef}
               graphData={graphData}
               nodeId="id"
-              nodeLabel={(n: any) => `${n.label} (${n.attributionStatus})`}
-              nodeCanvasObject={(node: any, ctx: any, globalScale: number) => {
+              nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
                 const isSelected = node.id === selectedFeId;
                 const isPulsing = node.id === pulsingNodeId;
                 const inPath = highlightedPath.includes(node.id);
 
-                const size = isSelected ? 8 : 6;
-                ctx.globalAlpha = 1;
+                const hasFocus = selectedFeId || selectedTx || highlightedPath.length > 0;
+                const isRelevant = !hasFocus || isSelected || inPath || (selectedTx && (selectedTx.senderFinancialEntityId === node.id || selectedTx.receiverFinancialEntityId === node.id));
+                
+                ctx.globalAlpha = isRelevant ? 1.0 : 0.25;
 
-                if (node.type === "BANK_ACCOUNT" || node.type === "UPI_ID") {
-                  // Diamond shape
+                const radius = isSelected ? 8 : 6;
+                const isBankOrUpi = node.type === "BANK_ACCOUNT" || node.type === "UPI_ID";
+
+                if (isBankOrUpi) {
+                  // High contrast diamond
+                  const dSize = radius * 1.3;
                   ctx.beginPath();
-                  ctx.moveTo(node.x, node.y - size * 1.3);
-                  ctx.lineTo(node.x + size * 1.3, node.y);
-                  ctx.lineTo(node.x, node.y + size * 1.3);
-                  ctx.lineTo(node.x - size * 1.3, node.y);
+                  ctx.moveTo(node.x, node.y - dSize);
+                  ctx.lineTo(node.x + dSize, node.y);
+                  ctx.lineTo(node.x, node.y + dSize);
+                  ctx.lineTo(node.x - dSize, node.y);
                   ctx.closePath();
-                  ctx.fillStyle = isSelected ? "#10b981" : inPath ? "#34d399" : "#059669";
+                  ctx.fillStyle = isSelected ? "#10b981" : inPath ? "#34d399" : "#4a6741";
                   ctx.fill();
                 } else {
                   // Hexagon for Exchange endpoint
+                  const hSize = radius * 1.4;
                   ctx.beginPath();
                   for (let i = 0; i < 6; i++) {
                     const angle = (Math.PI / 3) * i;
-                    ctx.lineTo(node.x + size * 1.4 * Math.cos(angle), node.y + size * 1.4 * Math.sin(angle));
+                    const x = node.x + hSize * Math.cos(angle);
+                    const y = node.y + hSize * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
                   }
                   ctx.closePath();
-                  ctx.fillStyle = "#f59e0b";
+                  ctx.fillStyle = "#8b6914";
                   ctx.fill();
                 }
 
                 if (isSelected || isPulsing) {
-                  ctx.strokeStyle = isPulsing ? "#10b981" : "#ffffff";
-                  ctx.lineWidth = 2 / globalScale;
+                  ctx.strokeStyle = "#2c2416";
+                  ctx.lineWidth = 2.5 / globalScale;
                   ctx.stroke();
                 }
 
-                const fontSize = Math.max(10 / globalScale, 3);
-                ctx.font = `${fontSize}px monospace`;
+                // High Contrast Labels using ARGUS typography
+                const fontSize = Math.max(11 / globalScale, 3.5);
+                ctx.font = `600 ${fontSize}px Source Sans 3, sans-serif`;
                 ctx.textAlign = "center";
-                ctx.fillStyle = "#e2e8f0";
-                ctx.fillText(node.label, node.x, node.y + size + 4);
+                ctx.textBaseline = "top";
+                ctx.fillStyle = "#2c2416";
+                ctx.fillText(node.label, node.x, node.y + radius + 4);
+
+                ctx.globalAlpha = 1.0;
               }}
-              linkDirectionalArrowLength={5}
-              linkDirectionalArrowRelPos={0.9}
-              linkDirectionalParticles={(link: any) => (link.id === animatingTxId ? 4 : 0)}
-              linkDirectionalParticleSpeed={0.015}
-              linkWidth={(link: any) => (pathTxIds.has(link.id) || link.id === animatingTxId ? 3 : 1)}
-              linkColor={(link: any) => (pathTxIds.has(link.id) || link.id === animatingTxId ? "#10b981" : "rgba(226, 232, 240, 0.2)")}
-              onNodeClick={(node: any) => setSelectedFeId(node.id)}
+              linkCanvasObjectMode={() => "after"}
+              linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                const isSelected = selectedTx?.id === link.id;
+                const isPath = pathTxIds.has(link.id);
+                const isAnimating = animatingTxId === link.id;
+
+                const start = link.source;
+                const end = link.target;
+                if (!start || !end || typeof start.x !== "number" || typeof end.x !== "number") return;
+
+                // Draw edge amount label when selected or animating
+                if (isSelected || isAnimating || isPath) {
+                  const fontSize = Math.max(10 / globalScale, 3);
+                  ctx.font = `600 ${fontSize}px monospace`;
+                  ctx.fillStyle = "#2c2416";
+                  ctx.textAlign = "center";
+                  const midX = (start.x + end.x) / 2;
+                  const midY = (start.y + end.y) / 2;
+                  const amtLabel = `₹${(Number(link.amount) / 100000).toFixed(2)}L`;
+                  ctx.fillText(amtLabel, midX, midY - 6);
+                }
+
+                // Precision Rupee Movement Animation traveling along exact path geometry
+                if (isAnimating && animProgress > 0) {
+                  const currentX = start.x + (end.x - start.x) * animProgress;
+                  const currentY = start.y + (end.y - start.y) * animProgress;
+
+                  // Draw traveling rupee badge marker
+                  const rSize = 10 / globalScale;
+                  ctx.beginPath();
+                  ctx.arc(currentX, currentY, rSize, 0, 2 * Math.PI);
+                  ctx.fillStyle = "#10b981";
+                  ctx.fill();
+
+                  ctx.strokeStyle = "#ffffff";
+                  ctx.lineWidth = 1.5 / globalScale;
+                  ctx.stroke();
+
+                  ctx.font = `bold ${Math.max(9 / globalScale, 3)}px sans-serif`;
+                  ctx.fillStyle = "#ffffff";
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText("₹", currentX, currentY);
+                }
+              }}
+              linkDirectionalArrowLength={6}
+              linkDirectionalArrowRelPos={0.95}
+              linkWidth={(link: any) => (selectedTx?.id === link.id || pathTxIds.has(link.id) || link.id === animatingTxId ? 2.5 : 1)}
+              linkColor={(link: any) => {
+                if (selectedTx?.id === link.id || link.id === animatingTxId) return "#10b981";
+                if (pathTxIds.has(link.id)) return "#2c2416";
+                return "rgba(44, 36, 22, 0.25)";
+              }}
+              onNodeClick={(node: any) => {
+                if (selectedFeId === node.id) {
+                  setSelectedFeId(null);
+                } else {
+                  setSelectedFeId(node.id);
+                }
+              }}
+              onNodeHover={(node: any) => {
+                setHoveredNode(node);
+                if (node && graphRef.current && typeof graphRef.current.graph2Coords === "function") {
+                  const coords = graphRef.current.graph2Coords(node.x, node.y);
+                  setHoveredNodePos(coords);
+                } else {
+                  setHoveredNodePos(null);
+                }
+              }}
+              onLinkClick={(link: any) => {
+                const foundTx = transactions.find((t) => t.id === link.id);
+                if (foundTx) setSelectedTx(foundTx);
+              }}
+              onLinkHover={(link: any) => {
+                if (link && graphRef.current && typeof graphRef.current.graph2Coords === "function") {
+                  setHoveredTxId(link.id);
+                  const start = link.source;
+                  const end = link.target;
+                  if (start && end && typeof start.x === "number" && typeof end.x === "number") {
+                    const coords = graphRef.current.graph2Coords((start.x + end.x) / 2, (start.y + end.y) / 2);
+                    setHoveredTxPos(coords);
+                  }
+                } else {
+                  setHoveredTxId(null);
+                  setHoveredTxPos(null);
+                }
+              }}
               onBackgroundClick={() => {
                 setSelectedFeId(null);
+                setSelectedTx(null);
                 setHighlightedPath([]);
                 setPathTxIds(new Set());
               }}
-              height={600}
+              height={620}
             />
-
-            {/* Rupee Marker Travelling Overlay Animation */}
-            {animatingTxId && (
-              <div className="absolute top-4 left-4 p-2 bg-emerald-950/80 border border-emerald-500/50 rounded text-emerald-300 text-xs font-mono flex items-center gap-2 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                ₹ Travelling along transaction edge...
-              </div>
-            )}
           </div>
 
           {/* Signals & Layering Analysis Strip */}
@@ -390,17 +601,24 @@ export default function FinancialTrailPage() {
                 return (
                   <div
                     key={tx.id}
-                    onClick={() => setSelectedTx(tx)}
+                    onClick={() => {
+                      if (selectedTx?.id === tx.id) {
+                        setSelectedTx(null);
+                      } else {
+                        setSelectedTx(tx);
+                        setSelectedFeId(tx.senderFinancialEntityId);
+                      }
+                    }}
                     className={`p-3 rounded border transition-all cursor-pointer space-y-2 ${
                       isSelected
-                        ? "bg-emerald-950/20 border-emerald-500/60 shadow-sm"
+                        ? "bg-surface-elevated border-accent shadow-xs"
                         : isAnimating
-                        ? "bg-emerald-950/40 border-emerald-400"
+                        ? "bg-emerald-500/10 border-emerald-500"
                         : "bg-background hover:bg-surface border-border"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-mono font-bold text-emerald-400">
+                      <span className="text-sm font-mono font-bold text-foreground">
                         ₹{(Number(tx.amount) / 100000).toFixed(2)}L
                       </span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface border border-border text-text-muted">
@@ -435,11 +653,11 @@ export default function FinancialTrailPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="surface p-4 rounded border border-emerald-500/40 space-y-3"
+                className="surface p-4 rounded border border-border space-y-3"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-[10px] text-emerald-400 font-mono font-semibold uppercase tracking-wider block">
+                    <span className="text-[10px] text-accent font-mono font-semibold uppercase tracking-wider block">
                       Transaction Detail
                     </span>
                     <h4 className="text-lg font-mono font-bold text-foreground">

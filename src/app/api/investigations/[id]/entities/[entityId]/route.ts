@@ -7,10 +7,40 @@ export async function GET(
 ) {
   const { id, entityId } = await params;
 
-  const entity = await db.entity.findFirst({
+  let entity = await db.entity.findFirst({
     where: { id: entityId, investigationId: id },
     include: { aliases: true },
   });
+
+  if (!entity) {
+    // Check if entityId refers to a FinancialEntity instead
+    const fe = await db.financialEntity.findFirst({
+      where: { id: entityId, investigationId: id },
+      include: { linkedEntity: true },
+    });
+
+    if (fe) {
+      if (fe.linkedEntityId && fe.linkedEntity) {
+        entity = await db.entity.findFirst({
+          where: { id: fe.linkedEntityId, investigationId: id },
+          include: { aliases: true },
+        });
+      } else {
+        // Construct a synthetic Entity detail representation for unassigned financial entities
+        entity = {
+          id: fe.id,
+          investigationId: id,
+          label: fe.identifier,
+          type: fe.type,
+          description: `Financial account (${fe.attributionStatus})`,
+          aliases: [],
+          metadata: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any;
+      }
+    }
+  }
 
   if (!entity) {
     return NextResponse.json({ error: "Entity not found" }, { status: 404 });
