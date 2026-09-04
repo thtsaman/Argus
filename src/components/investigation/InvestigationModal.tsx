@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 
 export interface InvestigationData {
@@ -11,6 +11,9 @@ export interface InvestigationData {
   caseNumber: string;
   startDate: string | null;
   endDate: string | null;
+  investigator?: string | null;
+  sourceOrigin?: string | null;
+  primaryLocation?: string | null;
   lead?: { name: string } | null;
   _count?: {
     entities: number;
@@ -26,6 +29,17 @@ interface InvestigationModalProps {
   editingInvestigation?: InvestigationData | null;
 }
 
+function formatDateForInput(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return format(d, "yyyy-MM-dd");
+  } catch {
+    return "";
+  }
+}
+
 export function InvestigationModal({
   isOpen,
   onClose,
@@ -34,22 +48,42 @@ export function InvestigationModal({
 }: InvestigationModalProps) {
   const isEdit = !!editingInvestigation;
 
-  const [title, setTitle] = useState(editingInvestigation?.title || "");
-  const [description, setDescription] = useState(editingInvestigation?.description || "");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [investigator, setInvestigator] = useState("");
   const [sourceOrigin, setSourceOrigin] = useState("");
   const [primaryLocation, setPrimaryLocation] = useState("");
-  const [startDate, setStartDate] = useState(
-    editingInvestigation?.startDate ? format(new Date(editingInvestigation.startDate), "yyyy-MM-dd") : ""
-  );
-  const [endDate, setEndDate] = useState(
-    editingInvestigation?.endDate ? format(new Date(editingInvestigation.endDate), "yyyy-MM-dd") : ""
-  );
-  const [status, setStatus] = useState<"ACTIVE" | "ON_HOLD" | "CLOSED" | "ARCHIVED">(
-    editingInvestigation?.status || "ACTIVE"
-  );
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [status, setStatus] = useState<"ACTIVE" | "ON_HOLD" | "CLOSED" | "ARCHIVED">("ACTIVE");
+
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+      if (editingInvestigation) {
+        setTitle(editingInvestigation.title || "");
+        setDescription(editingInvestigation.description || "");
+        setInvestigator(editingInvestigation.investigator || editingInvestigation.lead?.name || "");
+        setSourceOrigin(editingInvestigation.sourceOrigin || "");
+        setPrimaryLocation(editingInvestigation.primaryLocation || "");
+        setStartDate(formatDateForInput(editingInvestigation.startDate));
+        setEndDate(formatDateForInput(editingInvestigation.endDate));
+        setStatus(editingInvestigation.status || "ACTIVE");
+      } else {
+        setTitle("");
+        setDescription("");
+        setInvestigator("");
+        setSourceOrigin("");
+        setPrimaryLocation("");
+        setStartDate("");
+        setEndDate("");
+        setStatus("ACTIVE");
+      }
+    }
+  }, [isOpen, editingInvestigation]);
 
   if (!isOpen) return null;
 
@@ -81,16 +115,13 @@ export function InvestigationModal({
       const payload: any = {
         title: title.trim(),
         description: description.trim(),
+        investigator: investigator.trim(),
+        sourceOrigin: sourceOrigin.trim(),
+        primaryLocation: primaryLocation.trim(),
         startDate: startDate || null,
         endDate: endDate || null,
         status,
       };
-
-      if (!isEdit) {
-        payload.investigator = investigator.trim();
-        payload.sourceOrigin = sourceOrigin.trim();
-        payload.primaryLocation = primaryLocation.trim();
-      }
 
       const res = await fetch(url, {
         method,
@@ -161,42 +192,40 @@ export function InvestigationModal({
             />
           </div>
 
-          {!isEdit && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-text-secondary">Investigator</label>
-                <input
-                  type="text"
-                  value={investigator}
-                  onChange={(e) => setInvestigator(e.target.value)}
-                  placeholder="Officer Name"
-                  className="w-full text-xs p-2 bg-background border border-border rounded text-foreground focus:outline-hidden focus:border-accent"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-text-secondary">Source / Origin</label>
-                <input
-                  type="text"
-                  value={sourceOrigin}
-                  onChange={(e) => setSourceOrigin(e.target.value)}
-                  placeholder="e.g. Cyber Cell"
-                  className="w-full text-xs p-2 bg-background border border-border rounded text-foreground focus:outline-hidden focus:border-accent"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-text-secondary">Primary Location</label>
-                <input
-                  type="text"
-                  value={primaryLocation}
-                  onChange={(e) => setPrimaryLocation(e.target.value)}
-                  placeholder="e.g. Kolkata"
-                  className="w-full text-xs p-2 bg-background border border-border rounded text-foreground focus:outline-hidden focus:border-accent"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-secondary">Investigator</label>
+              <input
+                type="text"
+                value={investigator}
+                onChange={(e) => setInvestigator(e.target.value)}
+                placeholder="Officer Name"
+                className="w-full text-xs p-2 bg-background border border-border rounded text-foreground focus:outline-hidden focus:border-accent"
+              />
             </div>
-          )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-secondary">Source / Origin</label>
+              <input
+                type="text"
+                value={sourceOrigin}
+                onChange={(e) => setSourceOrigin(e.target.value)}
+                placeholder="e.g. Cyber Cell"
+                className="w-full text-xs p-2 bg-background border border-border rounded text-foreground focus:outline-hidden focus:border-accent"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-secondary">Primary Location</label>
+              <input
+                type="text"
+                value={primaryLocation}
+                onChange={(e) => setPrimaryLocation(e.target.value)}
+                placeholder="e.g. Kolkata"
+                className="w-full text-xs p-2 bg-background border border-border rounded text-foreground focus:outline-hidden focus:border-accent"
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
