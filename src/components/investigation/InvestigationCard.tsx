@@ -8,6 +8,7 @@ import type { InvestigationData } from "./InvestigationModal";
 interface InvestigationCardProps {
   investigation: InvestigationData;
   onEdit: (inv: InvestigationData) => void;
+  onDuplicate: (inv: InvestigationData) => void;
   onArchiveToggle: (inv: InvestigationData) => void;
   onDeleteRequest: (inv: InvestigationData) => void;
 }
@@ -15,6 +16,7 @@ interface InvestigationCardProps {
 export function InvestigationCard({
   investigation,
   onEdit,
+  onDuplicate,
   onArchiveToggle,
   onDeleteRequest,
 }: InvestigationCardProps) {
@@ -83,6 +85,16 @@ export function InvestigationCard({
                     className="w-full text-left px-3 py-1.5 text-text-secondary hover:text-foreground hover:bg-surface transition-colors"
                   >
                     Edit Metadata
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDuplicate(investigation);
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-text-secondary hover:text-foreground hover:bg-surface transition-colors"
+                  >
+                    Duplicate
                   </button>
 
                   <button

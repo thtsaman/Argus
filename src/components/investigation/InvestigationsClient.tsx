@@ -6,6 +6,7 @@ import { PageHeader, EmptyState } from "@/components/ui/common";
 import { InvestigationCard } from "@/components/investigation/InvestigationCard";
 import { InvestigationModal, type InvestigationData } from "@/components/investigation/InvestigationModal";
 import { ConfirmationModal } from "@/components/investigation/ConfirmationModal";
+import { DuplicateModal } from "@/components/investigation/DuplicateModal";
 
 interface InvestigationsClientProps {
   initialInvestigations: InvestigationData[];
@@ -21,6 +22,7 @@ export function InvestigationsClient({ initialInvestigations }: InvestigationsCl
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingInv, setEditingInv] = useState<InvestigationData | null>(null);
 
+  const [duplicateTarget, setDuplicateTarget] = useState<InvestigationData | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<InvestigationData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InvestigationData | null>(null);
 
@@ -43,6 +45,25 @@ export function InvestigationsClient({ initialInvestigations }: InvestigationsCl
       // Created new investigation -> redirect to Evidence Intake page
       router.push(`/investigations/${inv.id}/intake`);
     }
+  };
+
+  const handleDuplicateConfirm = async (title: string, description: string) => {
+    if (!duplicateTarget) return;
+
+    const res = await fetch(`/api/investigations/${duplicateTarget.id}/duplicate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, description }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to duplicate investigation");
+    }
+
+    setDuplicateTarget(null);
+    // Redirect to the newly created duplicated investigation's Evidence Intake page
+    router.push(`/investigations/${data.id}/intake`);
   };
 
   const handleArchiveToggleConfirm = async () => {
@@ -167,6 +188,7 @@ export function InvestigationsClient({ initialInvestigations }: InvestigationsCl
               key={inv.id}
               investigation={inv}
               onEdit={handleOpenEdit}
+              onDuplicate={(target) => setDuplicateTarget(target)}
               onArchiveToggle={(target) => setArchiveTarget(target)}
               onDeleteRequest={(target) => setDeleteTarget(target)}
             />
@@ -181,6 +203,17 @@ export function InvestigationsClient({ initialInvestigations }: InvestigationsCl
         onSaved={handleSaved}
         editingInvestigation={editingInv}
       />
+
+      {/* Duplicate Modal */}
+      {duplicateTarget && (
+        <DuplicateModal
+          isOpen={!!duplicateTarget}
+          originalTitle={duplicateTarget.title}
+          originalDescription={duplicateTarget.description}
+          onConfirm={handleDuplicateConfirm}
+          onClose={() => setDuplicateTarget(null)}
+        />
+      )}
 
       {/* Archive / Restore Confirmation */}
       {archiveTarget && (
