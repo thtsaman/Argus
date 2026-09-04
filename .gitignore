@@ -52,5 +52,6 @@ next-env.d.ts
 # Testing
 coverage/
 
-agents.md  
-claude.md
+# AI Agent Files
+AGENTS.md
+CLAUDE.md
