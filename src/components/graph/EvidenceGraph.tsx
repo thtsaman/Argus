@@ -121,10 +121,40 @@ export function EvidenceGraph({
       ctx.globalAlpha = opacity;
 
       const radius = isBridge ? 8 : isSelected ? 7 : 5;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = NODE_COLORS[node.type as string] || "#6b5344";
-      ctx.fill();
+      const isBankOrUpi = node.type === "BANK_ACCOUNT" || node.type === "UPI_ID";
+      const isExchange = node.type === "EXCHANGE";
+
+      if (isBankOrUpi) {
+        // Draw diamond shape for financial bank/UPI nodes
+        const dSize = radius * 1.3;
+        ctx.beginPath();
+        ctx.moveTo(node.x, node.y - dSize);
+        ctx.lineTo(node.x + dSize, node.y);
+        ctx.lineTo(node.x, node.y + dSize);
+        ctx.lineTo(node.x - dSize, node.y);
+        ctx.closePath();
+        ctx.fillStyle = node.type === "BANK_ACCOUNT" ? "#10b981" : "#06b6d4";
+        ctx.fill();
+      } else if (isExchange) {
+        // Draw terminal hexagon shape for Exchange endpoints
+        const hSize = radius * 1.4;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          const x = node.x + hSize * Math.cos(angle);
+          const y = node.y + hSize * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "#f59e0b";
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = NODE_COLORS[node.type as string] || "#6b5344";
+        ctx.fill();
+      }
 
       if (isSelected || inPath) {
         ctx.strokeStyle = "#2c2416";

@@ -47,6 +47,8 @@ export default async function InvestigationOverviewPage({
           events: true,
           locations: true,
           candidates: true,
+          financialEntities: true,
+          transactions: true,
         },
       },
     },
@@ -130,6 +132,32 @@ export default async function InvestigationOverviewPage({
             <div className="flex justify-between">
               <dt className="text-text-muted">Events</dt>
               <dd>{investigation._count.events}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="surface-elevated p-5">
+          <div className="flex items-center justify-between mb-2">
+            <SectionHeader title="Financial activity" />
+            <Link
+              href={`/investigations/${id}/financial`}
+              className="text-xs text-emerald-400 hover:underline font-medium"
+            >
+              View Trail →
+            </Link>
+          </div>
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-text-muted">Accounts tracked</dt>
+              <dd className="font-medium text-emerald-400">{investigation._count.financialEntities}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-text-muted">Transactions</dt>
+              <dd className="font-medium">{investigation._count.transactions}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-text-muted">Top Signal</dt>
+              <dd className="text-xs font-mono text-amber-400">ACC-2098 Recurrence</dd>
             </div>
           </dl>
         </div>

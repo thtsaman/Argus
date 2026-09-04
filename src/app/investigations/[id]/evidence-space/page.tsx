@@ -160,10 +160,15 @@ export default function EvidenceSpacePage() {
     }
   };
 
+  const [showMoneyTrail, setShowMoneyTrail] = useState(false);
+
   const filteredGraphData = useMemo(() => {
     if (!graphData) return null;
 
     let nodes = graphData.nodes;
+    if (!showMoneyTrail) {
+      nodes = nodes.filter((n) => n.type !== "BANK_ACCOUNT" && n.type !== "UPI_ID" && n.type !== "EXCHANGE");
+    }
     if (typeFilter !== "ALL") {
       nodes = nodes.filter((n) => n.type === typeFilter);
     }
@@ -276,6 +281,19 @@ export default function EvidenceSpacePage() {
               </button>
             ))}
           </div>
+
+          {/* Show Money Trail Toggle */}
+          <button
+            onClick={() => setShowMoneyTrail((prev) => !prev)}
+            className={`px-3 py-1 text-xs rounded font-medium border transition-colors flex items-center gap-1.5 ${
+              showMoneyTrail
+                ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 font-semibold"
+                : "border-border text-text-muted hover:text-foreground"
+            }`}
+          >
+            <span>💳</span>
+            {showMoneyTrail ? "Money Trail: ON" : "Show Money Trail"}
+          </button>
         </div>
 
         <div className="text-xs text-text-muted shrink-0 font-mono">

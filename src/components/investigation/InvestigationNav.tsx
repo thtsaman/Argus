@@ -35,6 +35,11 @@ const EXPLORE_ITEMS = [
     label: "Replay",
     description: "See how the investigation developed",
   },
+  {
+    hrefSuffix: "/financial",
+    label: "Financial Trail",
+    description: "Trace synthetic bank/UPI money movement",
+  },
 ];
 
 const EVIDENCE_ITEMS = [

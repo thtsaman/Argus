@@ -19,6 +19,13 @@ export interface EntityContextData {
     targetId?: string;
     entityId?: string;
   }[];
+  financialActivity?: {
+    linkedAccountsCount: number;
+    txCount: number;
+    receivedAmount: number;
+    sentAmount: number;
+    accounts: { id: string; identifier: string; label: string; type: string; attributionStatus: string }[];
+  };
 }
 
 export interface FullEntityDetail {
@@ -193,6 +200,39 @@ export function EntityIntelligencePanel({
             "No significant analytical finding has been generated for this entity yet."}
         </p>
       </div>
+
+      {/* Financial Activity */}
+      {context?.financialActivity && (
+        <div className="p-3 bg-background rounded-lg border border-border space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Financial Activity
+            </h4>
+            <span className="text-[10px] font-mono text-emerald-500 font-medium">
+              {context.financialActivity.linkedAccountsCount} Account(s)
+            </span>
+          </div>
+          <div className="text-xs space-y-1 font-mono text-text-secondary">
+            <div>
+              Received: <span className="text-foreground font-semibold">₹{(context.financialActivity.receivedAmount / 100000).toFixed(2)}L</span>
+              {" | "}
+              Sent: <span className="text-foreground font-semibold">₹{(context.financialActivity.sentAmount / 100000).toFixed(2)}L</span>
+            </div>
+            <div>Transactions: {context.financialActivity.txCount} record(s)</div>
+            {context.financialActivity.accounts.length > 0 && (
+              <div className="text-[11px] text-text-muted mt-1">
+                Accounts: {context.financialActivity.accounts.map((a: any) => a.identifier).join(", ")}
+              </div>
+            )}
+          </div>
+          <a
+            href={`/investigations/${investigationId}/financial?entityId=${entity.id}&entityLabel=${encodeURIComponent(entity.label)}`}
+            className="mt-2 text-xs w-full block text-center py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium hover:bg-emerald-500/20 transition-colors"
+          >
+            💳 View Financial History
+          </a>
+        </div>
+      )}
 
       {/* Investigation Relevance */}
       {context?.investigationRelevance && (
