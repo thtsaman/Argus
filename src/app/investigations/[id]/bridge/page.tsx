@@ -7,6 +7,7 @@ import { PageHeader, LoadingState } from "@/components/ui/common";
 import { ContextualChatWidget } from "@/components/investigation/ContextualChatWidget";
 import { EvidenceViewModal } from "@/components/investigation/EvidenceViewModal";
 import { EvidenceGraph } from "@/components/graph/EvidenceGraph";
+import { AddToBriefButton } from "@/components/investigation/AddToBriefButton";
 import { countConnectedComponents } from "@/lib/graph/analysis";
 
 interface BridgeCandidate {
@@ -558,6 +559,18 @@ export default function BridgeViewPage() {
           {/* Action Buttons */}
           {selectedBridge && (
             <div className="pt-3 border-t border-border space-y-2">
+              <AddToBriefButton
+                itemType="BRIDGE"
+                itemData={{
+                  entityId: selectedBridge.entityId,
+                  label: selectedBridge.label,
+                  communities: [selectedBridge.clusterA.name, selectedBridge.clusterB.name],
+                  structuralImpact: `Removal fractures connectivity into ${withoutBridgeComponents} disconnected components.`,
+                  explanation: selectedBridge.description,
+                }}
+                label="+ Add Bridge Finding to Brief"
+                className="w-full text-xs py-2 px-3 bg-amber-700/10 hover:bg-amber-700/20 text-amber-800 border border-amber-700/30 font-semibold rounded transition-colors text-center font-mono block"
+              />
               <div className="flex gap-2">
                 <button
                   onClick={handleShowInNetwork}

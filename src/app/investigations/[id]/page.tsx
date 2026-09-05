@@ -68,9 +68,17 @@ export default async function InvestigationOverviewPage({
         title={investigation.title}
         description={investigation.description || undefined}
         actions={
-          <span className="text-xs font-medium px-2 py-1 rounded border border-border text-text-secondary">
-            {investigation.status}
-          </span>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/investigations/${id}/brief`}
+              className="px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-surface-elevated text-xs font-semibold rounded shadow-2xs transition-colors flex items-center gap-1.5 font-mono"
+            >
+              <span>📄</span> EXPORT INVESTIGATION BRIEF
+            </Link>
+            <span className="text-xs font-medium px-2.5 py-1.5 rounded border border-border text-text-secondary">
+              {investigation.status}
+            </span>
+          </div>
         }
       />
 

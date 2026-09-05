@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { format, parseISO, isWithinInterval, subDays, addDays } from "date-fns";
 import { PageHeader, LoadingState } from "@/components/ui/common";
+import { AddToBriefButton } from "@/components/investigation/AddToBriefButton";
 import { ContextualChatWidget } from "@/components/investigation/ContextualChatWidget";
 import { EvidenceViewModal } from "@/components/investigation/EvidenceViewModal";
 
@@ -315,6 +316,17 @@ export default function TemporalReconstructionPage() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <AddToBriefButton
+            itemType="TEMPORAL"
+            itemData={{
+              id: currentReplayEvent?.id || "TEMP-01",
+              timeWindow: currentReplayEvent ? format(new Date(currentReplayEvent.occurredAt), "dd MMM yyyy") : "Key Window",
+              title: currentReplayEvent?.title || "Paper Leak Incident Window",
+              details: currentReplayEvent?.description || "Significant chronological activity logged in timeline reconstruction.",
+            }}
+            label="Add Temporal Finding to Brief"
+            className="px-4 py-2 rounded text-xs font-semibold border transition-all bg-amber-700/10 hover:bg-amber-700/20 text-amber-800 border-amber-700/30 font-mono"
+          />
           <button
             onClick={() => {
               setReplayMode(!replayMode);

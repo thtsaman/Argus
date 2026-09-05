@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { PageHeader, SectionHeader, LoadingState } from "@/components/ui/common";
+import { AddToBriefButton } from "@/components/investigation/AddToBriefButton";
 import { motion, AnimatePresence } from "framer-motion";
 import { ContextualChatWidget } from "@/components/investigation/ContextualChatWidget";
 
@@ -268,6 +269,21 @@ export default function FinancialTrailPage() {
         description="Trace synthetic bank and UPI money movements, identify candidate intermediary accounts, and link financial activity to incident windows."
         actions={
           <div className="flex items-center gap-2">
+            <AddToBriefButton
+              itemType="FINANCIAL"
+              itemData={{
+                id: selectedTx?.id || "FIN-TRAIL",
+                title: selectedFe ? `Synthetic Money Trail (${selectedFe.identifier})` : "Synthetic Bank / UPI Money Trail",
+                amount: selectedTx?.amount || 450000,
+                channel: selectedTx?.channel || "BANK_TRANSFER / UPI",
+                date: selectedTx ? new Date(selectedTx.timestamp).toISOString() : new Date().toISOString(),
+                source: selectedTx?.sender?.identifier || "Bank Account ****9012",
+                target: selectedTx?.receiver?.identifier || "UPI synthetic.dist@upi",
+                details: "High-velocity financial layering detected across synthetic accounts.",
+              }}
+              label="Add Financial Finding to Brief"
+              className="px-3.5 py-1.5 bg-amber-700/10 hover:bg-amber-700/20 text-amber-800 border border-amber-700/30 font-semibold rounded text-xs font-mono transition-colors"
+            />
             {selectedFeId && (
               <button
                 onClick={() => {
