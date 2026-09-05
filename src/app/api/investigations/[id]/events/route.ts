@@ -15,8 +15,8 @@ export async function GET(
       ...(entityIds?.length ? { entityId: { in: entityIds } } : {}),
     },
     include: {
-      entity: { select: { label: true, type: true } },
-      location: { select: { name: true, latitude: true, longitude: true } },
+      entity: { select: { id: true, label: true, type: true } },
+      location: { select: { id: true, name: true, latitude: true, longitude: true } },
     },
     orderBy: { occurredAt: "asc" },
   });

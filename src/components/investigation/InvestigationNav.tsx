@@ -31,11 +31,6 @@ const EXPLORE_ITEMS = [
     description: "Explore geographic activity",
   },
   {
-    hrefSuffix: "/replay",
-    label: "Replay",
-    description: "See how the investigation developed",
-  },
-  {
     hrefSuffix: "/financial",
     label: "Financial Trail",
     description: "Trace synthetic bank/UPI money movement",
