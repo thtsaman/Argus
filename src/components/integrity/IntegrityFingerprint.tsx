@@ -7,6 +7,8 @@ export interface IntegrityFingerprintProps {
   size?: number;
   animated?: boolean;
   variant?: "default" | "verified" | "mismatch";
+  progress?: number; // 0 to 100 progressive reconstruction percentage
+  scanLine?: boolean; // Show forensic scanning line
   className?: string;
 }
 
@@ -16,6 +18,8 @@ export function IntegrityFingerprint({
   size = 180,
   animated = false,
   variant = "default",
+  progress = 100,
+  scanLine = false,
   className = "",
 }: IntegrityFingerprintProps) {
   const seed = fingerprintSeed || integrityId || "ARGUS-INTEGRITY-SEED";
@@ -37,10 +41,11 @@ export function IntegrityFingerprint({
       ? "#059669"
       : "#d97706";
 
-  const paths: { d: string; strokeWidth: number; opacity: number }[] = [];
+  const paths: { d: string; strokeWidth: number; opacity: number; visible: boolean }[] = [];
 
   const center = size / 2;
   const maxRadius = size * 0.44;
+  const visibleRingLimit = Math.ceil((ringCount * Math.min(100, Math.max(0, progress))) / 100);
 
   for (let i = 1; i <= ringCount; i++) {
     const radius = (i / ringCount) * maxRadius;
@@ -69,11 +74,15 @@ export function IntegrityFingerprint({
 
     const strokeWidth = 0.8 + (i % 3) * 0.4;
     const opacity = 0.35 + (i / ringCount) * 0.55;
-    paths.push({ d, strokeWidth, opacity });
+    const visible = i <= visibleRingLimit;
+    paths.push({ d, strokeWidth, opacity, visible });
   }
 
   // Microtext ring details
   const microtext = `ARGUS · INTEGRITY · ${integrityId.slice(0, 16)} · SEALED`;
+
+  // Calculate scan line Y coordinate based on progress
+  const scanLineY = scanLine && progress < 100 ? (progress / 100) * size : -20;
 
   return (
     <div
@@ -97,7 +106,8 @@ export function IntegrityFingerprint({
           stroke={colorStroke}
           strokeWidth={0.8}
           strokeDasharray="3 3"
-          opacity={0.4}
+          opacity={progress >= 20 ? 0.4 : 0.1}
+          className="transition-opacity duration-300"
         />
         <circle
           cx={center}
@@ -106,7 +116,8 @@ export function IntegrityFingerprint({
           fill="none"
           stroke={colorAccent}
           strokeWidth={0.5}
-          opacity={0.25}
+          opacity={progress >= 10 ? 0.25 : 0.05}
+          className="transition-opacity duration-300"
         />
 
         {/* Microtext Path Circle */}
@@ -117,7 +128,12 @@ export function IntegrityFingerprint({
           },0 a ${maxRadius + 2},${maxRadius + 2} 0 1,1 -${(maxRadius + 2) * 2},0`}
           fill="none"
         />
-        <text fontSize={Math.max(6, size * 0.035)} fill={colorStroke} opacity={0.5} className="font-mono uppercase font-bold tracking-widest">
+        <text
+          fontSize={Math.max(6, size * 0.035)}
+          fill={colorStroke}
+          opacity={progress >= 80 ? 0.5 : 0.1}
+          className="font-mono uppercase font-bold tracking-widest transition-opacity duration-500"
+        >
           <textPath href={`#microtext-path-${integrityId.replace(/[^a-zA-Z0-9]/g, "")}`}>
             {microtext}
           </textPath>
@@ -131,13 +147,44 @@ export function IntegrityFingerprint({
             fill="none"
             stroke={idx % 4 === 0 ? colorAccent : colorStroke}
             strokeWidth={p.strokeWidth}
-            opacity={p.opacity}
+            opacity={p.visible ? p.opacity : 0}
+            strokeDasharray={p.visible ? "none" : "1 8"}
+            className="transition-opacity duration-300"
           />
         ))}
 
         {/* Core Identity Geometry */}
-        <circle cx={center} cy={center} r={4} fill={colorAccent} opacity={0.9} />
-        <circle cx={center} cy={center} r={9} fill="none" stroke={colorStroke} strokeWidth={1} />
+        {progress >= 70 && (
+          <>
+            <circle cx={center} cy={center} r={4} fill={colorAccent} opacity={0.9} />
+            <circle cx={center} cy={center} r={9} fill="none" stroke={colorStroke} strokeWidth={1} />
+          </>
+        )}
+
+        {/* Forensic Scan Line */}
+        {scanLine && progress > 0 && progress < 100 && (
+          <g className="pointer-events-none">
+            <line
+              x1={0}
+              y1={scanLineY}
+              x2={size}
+              y2={scanLineY}
+              stroke={colorAccent}
+              strokeWidth={1}
+              strokeDasharray="4 2"
+              opacity={0.7}
+            />
+            <line
+              x1={center - 20}
+              y1={scanLineY}
+              x2={center + 20}
+              y2={scanLineY}
+              stroke={colorAccent}
+              strokeWidth={2}
+              opacity={0.9}
+            />
+          </g>
+        )}
       </svg>
     </div>
   );
