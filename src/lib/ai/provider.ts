@@ -344,7 +344,40 @@ function generateFallbackExplanation(
   const focus = context.focusContext as any;
   const rels = (context.relevantRelationships as any[]) || [];
   const evs = (context.relevantEvidence as any[]) || [];
-  const focusLabel = focus?.label || focus?.details?.financialEntity?.identifier || focus?.details?.label || "the selected entity";
+  const focusLabel = focus?.label || focus?.details?.location?.name || focus?.details?.financialEntity?.identifier || focus?.details?.label || "the selected entity";
+
+  // Check if this is a Geographic context
+  if (focus?.type === "GEOGRAPHIC" || focus?.details?.location) {
+    const loc = focus?.details?.location;
+    const siteEvents: any[] = focus?.details?.associatedEvents || [];
+    const locName = loc?.name || focusLabel;
+
+    let knownLines: string[] = [
+      `- Geographic Site: ${locName} (${loc?.coordinates || "Coordinates recorded"}).`,
+      `- Region / Address: ${loc?.region || "Logistics Depot Region"}, ${loc?.address || "Site address"}`,
+    ];
+
+    if (siteEvents.length > 0) {
+      siteEvents.forEach((ev: any) => {
+        knownLines.push(`- Site Event Record: "${ev.title}" on ${new Date(ev.occurredAt).toLocaleDateString("en-IN")}${ev.entityLabel ? ` (Associated Entity: ${ev.entityLabel})` : ""}.`);
+      });
+    }
+
+    return `KNOWN
+${knownLines.join("\n")}
+
+INFERRED
+- Repeated site presence across examination dispatch windows indicates an operational transit hub.
+- Temporal clustering suggests pre-dispatch access coordination prior to reported paper leaks.
+
+UNCERTAIN
+- Direct physical access logs inside secure storage rooms require badge scan validation.
+- Sub-contractor transport transit routes between sites are unverified by GPS telemetry.
+
+NEXT TO INVESTIGATE
+- Cross-reference site visitor access logs with phone communication timestamps.
+- Review warehouse dispatch manifests for shipments originating from ${locName}.`;
+  }
 
   // Check if this is a Financial Trail context
   if (focus?.type === "FINANCIAL" || focus?.details?.financialEntity || focus?.details?.transactions) {

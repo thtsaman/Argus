@@ -182,6 +182,58 @@ export async function POST(
           excerpt: e.evidence.normalizedContent?.slice(0, 1000),
         }));
       }
+    } else if (focusType === "GEOGRAPHIC") {
+      // Primary Geographic Context branch: fetch authoritative location, site events, entities, and evidence from DB
+      const targetLoc = focusId && focusId !== id
+        ? await db.location.findFirst({
+            where: { investigationId: id, OR: [{ id: focusId }, { name: { contains: focusId } }] },
+            include: {
+              events: {
+                orderBy: { occurredAt: "asc" },
+                include: {
+                  entity: { select: { label: true, type: true } },
+                  evidenceLinks: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+                },
+              },
+            },
+          })
+        : null;
+
+      if (targetLoc) {
+        focusDetails = {
+          location: {
+            id: targetLoc.id,
+            name: targetLoc.name,
+            coordinates: `${targetLoc.latitude}, ${targetLoc.longitude}`,
+            region: targetLoc.region,
+            address: targetLoc.address,
+          },
+          eventCount: targetLoc.events.length,
+          associatedEvents: targetLoc.events.map((e) => ({
+            title: e.title,
+            occurredAt: e.occurredAt.toISOString(),
+            entityLabel: e.entity?.label || null,
+          })),
+        };
+
+        relevantEvidence = targetLoc.events.flatMap((e) =>
+          e.evidenceLinks.map((el) => ({
+            title: el.evidence.title,
+            excerpt: el.evidence.normalizedContent?.slice(0, 1000),
+          }))
+        );
+      } else {
+        const allLocs = await db.location.findMany({
+          where: { investigationId: id },
+          include: { events: { select: { id: true, title: true } } },
+        });
+
+        focusDetails = {
+          overview: "Geospatial Overview of Investigation",
+          locationCount: allLocs.length,
+          locations: allLocs.map((l) => ({ name: l.name, region: l.region, eventCount: l.events.length })),
+        };
+      }
     } else if (focusType === "FINANCIAL") {
       // Primary Financial Context branch: fetch authoritative financial entity & transactions from DB
       const targetFe = focusId && focusId !== id
