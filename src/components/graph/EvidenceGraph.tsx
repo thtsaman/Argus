@@ -118,19 +118,21 @@ export function EvidenceGraph({
       const isBridge = node.isBridge;
 
       const hasFocus = selectedNodeId || highlightedPath.length > 0 || highlightedNodes;
-      const isRelevant = !hasFocus || isSelected || inPath || isHighlighted;
-      const opacity = isRelevant ? 1 : 0.15;
+      // Surrounding cluster nodes should remain fully visible (opacity 1) unless explicit path highlighting is active
+      const isRelevant = !hasFocus || isSelected || inPath || isHighlighted || true;
+      const opacity = (highlightedPath.length > 0 && !inPath) ? 0.35 : 1;
 
       const fontSize = Math.max(10 / globalScale, 3);
       ctx.globalAlpha = opacity;
 
-      const radius = isBridge ? 8 : isSelected ? 7 : 5;
+      // Visual Hierarchy: Bridge (2-2.5x normal size: ~11-12px), Direct neighbors / selected (7-8px), Normal nodes (5px)
+      const radius = isBridge ? 12 : (isSelected || inPath) ? 8 : 5;
       const isBankOrUpi = node.type === "BANK_ACCOUNT" || node.type === "UPI_ID";
       const isExchange = node.type === "EXCHANGE";
 
       if (isBankOrUpi) {
         // Draw diamond shape for financial bank/UPI nodes
-        const dSize = radius * 1.3;
+        const dSize = radius * 1.2;
         ctx.beginPath();
         ctx.moveTo(node.x, node.y - dSize);
         ctx.lineTo(node.x + dSize, node.y);
@@ -141,7 +143,7 @@ export function EvidenceGraph({
         ctx.fill();
       } else if (isExchange) {
         // Draw terminal hexagon shape for Exchange endpoints
-        const hSize = radius * 1.4;
+        const hSize = radius * 1.3;
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
           const angle = (Math.PI / 3) * i;
@@ -156,21 +158,33 @@ export function EvidenceGraph({
       } else {
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = NODE_COLORS[node.type as string] || "#6b5344";
+        ctx.fillStyle = isBridge ? "#d97706" : (NODE_COLORS[node.type as string] || "#6b5344");
         ctx.fill();
       }
 
-      if (isSelected || inPath) {
+      // Draw prominent outline for Bridge node & selected / path nodes
+      if (isBridge) {
+        ctx.strokeStyle = "#b45309";
+        ctx.lineWidth = 3 / globalScale;
+        ctx.stroke();
+
+        // Extra outer glow ring for Bridge
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius + 4 / globalScale, 0, 2 * Math.PI);
+        ctx.strokeStyle = "rgba(217, 119, 6, 0.4)";
+        ctx.lineWidth = 2 / globalScale;
+        ctx.stroke();
+      } else if (isSelected || inPath) {
         ctx.strokeStyle = "#2c2416";
-        ctx.lineWidth = 1.5 / globalScale;
+        ctx.lineWidth = 2 / globalScale;
         ctx.stroke();
       }
 
-      ctx.font = `${fontSize}px Source Sans 3, sans-serif`;
+      ctx.font = `${isBridge ? "bold " : ""}${isBridge ? fontSize * 1.15 : fontSize}px Source Sans 3, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillStyle = "#2c2416";
-      ctx.fillText(label, node.x, node.y + radius + 2);
+      ctx.fillStyle = isBridge ? "#92400e" : "#2c2416";
+      ctx.fillText(label, node.x, node.y + radius + 3);
 
       ctx.globalAlpha = 1;
     },
@@ -183,11 +197,11 @@ export function EvidenceGraph({
       const status = link.status as RelationshipStatus;
       const style = getLinkStyle(status);
       const inPath = pathLinks.has(link.id as string);
-      const hasFocus = selectedNodeId || highlightedPath.length > 0;
-      if (hasFocus && !inPath) return `rgba(44, 36, 22, 0.08)`;
+      const isPathActive = highlightedPath.length > 0;
+      if (isPathActive && !inPath) return `rgba(44, 36, 22, 0.15)`;
       return inPath ? "#2c2416" : style.color;
     },
-    [selectedNodeId, highlightedPath, pathLinks]
+    [highlightedPath, pathLinks]
   );
 
   const linkWidth = useCallback(

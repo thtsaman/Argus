@@ -29,6 +29,9 @@ export default function BridgeViewPage() {
   const [bridges, setBridges] = useState<BridgeCandidate[]>([]);
   const [selectedBridge, setSelectedBridge] = useState<BridgeCandidate | null>(null);
 
+  // Collapsible candidate rail state
+  const [candidatePanelCollapsed, setCandidatePanelCollapsed] = useState<boolean>(false);
+
   // Signature Interactions & Modes
   const [withoutBridge, setWithoutBridge] = useState<boolean>(false);
   const [animatingPath, setAnimatingPath] = useState<boolean>(false);
@@ -275,62 +278,89 @@ export default function BridgeViewPage() {
         }
       />
 
-      {/* Main 3-Column Grid Layout — Canvas Occupies ~60% Width */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[680px]">
-        {/* LEFT COLUMN: Bridge Candidate Rail (3 Cols) */}
-        <div className="lg:col-span-3 surface-elevated p-4 rounded-lg border border-border space-y-4 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="border-b border-border pb-2">
-              <h3 className="font-serif text-base font-semibold text-foreground">Bridge Candidates</h3>
-              <p className="text-[11px] text-text-muted">Ranked structural centrality connectors</p>
-            </div>
-
-            <div className="space-y-2.5">
-              {bridges.map((b, idx) => {
-                const isSelected = b.entityId === selectedBridge?.entityId;
-                return (
-                  <button
-                    key={b.entityId}
-                    onClick={() => {
-                      setSelectedBridge(b);
-                      setWithoutBridge(false);
-                    }}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
-                      isSelected
-                        ? "bg-accent/10 border-accent text-foreground shadow-2xs"
-                        : "bg-background border-border/80 hover:bg-surface text-text-secondary hover:text-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border text-accent">
-                        0{idx + 1} · {b.bridgeType}
-                      </span>
-                      <span className="text-[10px] font-mono text-text-muted">Impact Score: {b.score.toFixed(1)}</span>
-                    </div>
-                    <div className="font-serif text-sm font-semibold text-foreground">{b.label}</div>
-                    <p className="text-[11px] text-text-muted line-clamp-2 mt-1">{b.description}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-border space-y-2">
+      {/* Main 3-Column Dynamic Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[680px] transition-all duration-300">
+        {/* LEFT COLUMN: Bridge Candidate Rail (Collapsible) */}
+        {candidatePanelCollapsed ? (
+          /* Collapsed Indicator Strip */
+          <div className="lg:col-span-1 surface-elevated p-2 rounded-lg border border-border flex flex-col items-center justify-between shadow-xs">
             <button
-              onClick={() => setShowFinancialLayer(!showFinancialLayer)}
-              className={`w-full text-xs py-2 px-3 rounded font-semibold border transition-colors ${
-                showFinancialLayer
-                  ? "bg-amber-500/20 text-amber-800 border-amber-500"
-                  : "bg-background text-text-secondary border-border hover:bg-surface"
-              }`}
+              onClick={() => setCandidatePanelCollapsed(false)}
+              className="p-2 rounded bg-surface hover:bg-surface-elevated text-text-secondary hover:text-foreground border border-border transition-colors w-full flex items-center justify-center gap-1 font-mono text-xs"
+              title="Expand Candidates Rail"
             >
-              {showFinancialLayer ? "● Financial Connections Layer ON" : "○ Show Financial Layer"}
+              <span>➔</span>
             </button>
+            <div className="writing-vertical text-center font-mono text-xs uppercase tracking-widest text-text-muted font-bold py-6">
+              CANDIDATES ({bridges.length})
+            </div>
+            <div className="w-2 h-2 rounded-full bg-accent animate-pulse"></div>
           </div>
-        </div>
+        ) : (
+          /* Full Candidate Rail (3 Cols) */
+          <div className="lg:col-span-3 surface-elevated p-4 rounded-lg border border-border space-y-4 flex flex-col justify-between relative shadow-xs transition-all duration-300">
+            <div className="space-y-3">
+              <div className="border-b border-border pb-2 flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif text-base font-semibold text-foreground">Bridge Candidates</h3>
+                  <p className="text-[11px] text-text-muted">Ranked structural centrality connectors</p>
+                </div>
+                <button
+                  onClick={() => setCandidatePanelCollapsed(true)}
+                  className="p-1.5 rounded bg-surface hover:bg-surface-elevated text-text-muted hover:text-foreground border border-border transition-colors text-xs font-mono"
+                  title="Collapse Candidates Rail"
+                >
+                  ◀
+                </button>
+              </div>
 
-        {/* CENTER COLUMN: DOMINANT HERO CANVAS (6 Cols) */}
-        <div className="lg:col-span-6 surface rounded-lg border border-border flex flex-col justify-between relative shadow-md overflow-hidden min-h-[580px]">
+              <div className="space-y-2.5">
+                {bridges.map((b, idx) => {
+                  const isSelected = b.entityId === selectedBridge?.entityId;
+                  return (
+                    <button
+                      key={b.entityId}
+                      onClick={() => {
+                        setSelectedBridge(b);
+                        setWithoutBridge(false);
+                      }}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                        isSelected
+                          ? "bg-accent/10 border-accent text-foreground shadow-2xs"
+                          : "bg-background border-border/80 hover:bg-surface text-text-secondary hover:text-foreground"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border text-accent">
+                          0{idx + 1} · {b.bridgeType}
+                        </span>
+                        <span className="text-[10px] font-mono text-text-muted">Impact Score: {b.score.toFixed(1)}</span>
+                      </div>
+                      <div className="font-serif text-sm font-semibold text-foreground">{b.label}</div>
+                      <p className="text-[11px] text-text-muted line-clamp-2 mt-1">{b.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-border space-y-2">
+              <button
+                onClick={() => setShowFinancialLayer(!showFinancialLayer)}
+                className={`w-full text-xs py-2 px-3 rounded font-semibold border transition-colors ${
+                  showFinancialLayer
+                    ? "bg-amber-500/20 text-amber-800 border-amber-500"
+                    : "bg-background text-text-secondary border-border hover:bg-surface"
+                }`}
+              >
+                {showFinancialLayer ? "● Financial Layer ON" : "○ Show Financial Layer"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* CENTER COLUMN: DOMINANT HERO CANVAS (Expands to 8 Cols when left is collapsed, else 6 Cols) */}
+        <div className={`${candidatePanelCollapsed ? "lg:col-span-8" : "lg:col-span-6"} surface rounded-lg border border-border flex flex-col justify-between relative shadow-md overflow-hidden min-h-[580px] transition-all duration-300`}>
           {/* Top Controls Strip */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-surface-elevated/60 backdrop-blur-sm z-10">
             <div className="flex items-center gap-2">
@@ -371,9 +401,9 @@ export default function BridgeViewPage() {
               /* RE-ENGINEERED SPLIT COMPARISON MODE: FOCUS SUBGRAPH & RECALCULATED LAYOUT */
               <div className="grid grid-cols-2 h-[460px] border-t border-border relative">
                 {/* Center Break Divider */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-background border border-border px-3 py-1.5 rounded-full shadow-lg text-center font-mono text-[10px] font-bold text-accent uppercase">
+                {/* <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-background border border-border px-3 py-1.5 rounded-full shadow-lg text-center font-mono text-[10px] font-bold text-accent uppercase">
                   ⚡ REMOVAL SIMULATION
-                </div>
+                </div> */}
 
                 {/* LEFT: WITH BRIDGE */}
                 <div className="p-3 border-r border-border flex flex-col justify-between overflow-hidden bg-emerald-950/5">
