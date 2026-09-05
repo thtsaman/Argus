@@ -60,7 +60,7 @@ export default function InvestigationBriefWorkspacePage() {
     });
   };
 
-  const generatePdfBlob = async (): Promise<{ doc: jsPDF; base64: string; filename: string }> => {
+  const generatePdfBlob = async (): Promise<{ doc: jsPDF; arrayBuffer: ArrayBuffer; filename: string }> => {
     const el = document.getElementById("argus-report-document");
     if (!el) throw new Error("Report element not found");
 
@@ -128,9 +128,9 @@ export default function InvestigationBriefWorkspacePage() {
 
     const safeTitle = (report?.investigation.title || "Question_Mark").replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `ARGUS_Investigation_Brief_${safeTitle}_${new Date().toISOString().split("T")[0]}.pdf`;
-    const base64 = pdf.output("datauristring");
+    const arrayBuffer = pdf.output("arraybuffer");
 
-    return { doc: pdf, base64, filename };
+    return { doc: pdf, arrayBuffer, filename };
   };
 
   // Export format selection
@@ -144,19 +144,33 @@ export default function InvestigationBriefWorkspacePage() {
     if (exportFormat === "PDF") {
       setGeneratingPdf(true);
       try {
-        const { doc, base64, filename } = await generatePdfBlob();
-        doc.save(filename);
+        const { arrayBuffer, filename } = await generatePdfBlob();
+        const base64 = Buffer.from(arrayBuffer).toString("base64");
 
-        // Server-side Integrity Record creation (compute SHA-256 after complete final PDF generation)
-        try {
-          await fetch(`/api/investigations/${id}/integrity/issue`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pdfBase64: base64, documentName: filename }),
-          });
-        } catch {
-          console.warn("Integrity record auto-seal logged locally");
+        // 1. Issue server-side Integrity Record over complete final PDF bytes FIRST
+        const res = await fetch(`/api/investigations/${id}/integrity/issue`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdfBase64: base64, documentName: filename }),
+        });
+        const resData = await res.json();
+        if (!res.ok) {
+          throw new Error(resData.error || "Failed to register document integrity record with server.");
         }
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[INTEGRITY ISSUE SUCCESS]", resData);
+        }
+
+        // 2. Trigger browser download of the EXACT identical raw PDF byte Blob
+        const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
       } catch (err: any) {
         alert("Failed to generate PDF: " + (err?.message || "Unknown error"));
       } finally {
@@ -189,7 +203,8 @@ export default function InvestigationBriefWorkspacePage() {
     setSendingEmail(true);
     setEmailStatus(null);
     try {
-      const { base64, filename } = await generatePdfBlob();
+      const { arrayBuffer, filename } = await generatePdfBlob();
+      const pdfBase64 = Buffer.from(arrayBuffer).toString("base64");
 
       const res = await fetch(`/api/investigations/${id}/brief/email`, {
         method: "POST",
@@ -198,7 +213,7 @@ export default function InvestigationBriefWorkspacePage() {
           recipient,
           investigationTitle: report?.investigation.title,
           caseNumber: report?.investigation.caseNumber,
-          pdfBase64: base64,
+          pdfBase64,
           filename,
         }),
       });

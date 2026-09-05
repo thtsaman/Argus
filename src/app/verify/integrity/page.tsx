@@ -4,7 +4,6 @@ import { useState } from "react";
 import { PageHeader } from "@/components/ui/common";
 import { IntegrityFingerprint } from "@/components/integrity/IntegrityFingerprint";
 import { formatDisplayHash } from "@/lib/integrity/hash";
-import { ContextualChatWidget } from "@/components/investigation/ContextualChatWidget";
 
 export default function DocumentVerificationStationPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -37,8 +36,14 @@ export default function DocumentVerificationStationPage() {
         body: formData,
       });
       const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Verification failed");
+        setResult(null);
+        return;
+      }
       setResult(data);
-    } catch {
+    } catch (err: any) {
+      alert("Error uploading file: " + (err?.message || "Unknown error"));
       setResult({ status: "VERIFICATION_ERROR", error: "Failed to communicate with verification server" });
     } finally {
       setVerifying(false);
@@ -83,7 +88,7 @@ export default function DocumentVerificationStationPage() {
                   {file ? file.name : "DROP PDF INVESTIGATION BRIEF HERE OR CLICK TO SELECT"}
                 </span>
                 <span className="text-[10px] font-mono text-text-muted block">
-                  Supports official PDF documents (Max 25MB)
+                  Supports official PDF documents (Max 100MB)
                 </span>
               </label>
             </div>
@@ -218,17 +223,6 @@ export default function DocumentVerificationStationPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Contextual Vyom AI Support */}
-      {result?.issuedRecord?.investigationId && (
-        <ContextualChatWidget
-          investigationId={result.issuedRecord.investigationId}
-          contextType="INTEGRITY_VERIFICATION"
-          contextId={result.issuedRecord.integrityId}
-          contextLabel={`Document Verification (${result.status})`}
-          onClose={() => {}}
-        />
       )}
     </div>
   );

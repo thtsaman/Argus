@@ -81,11 +81,29 @@ export async function issueIntegrityRecord(params: {
     },
   });
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[INTEGRITY ISSUE]", {
+      integrityId,
+      investigationId,
+      fileSize,
+      sha256,
+      version,
+    });
+  }
+
   return record;
 }
 
 export async function verifyIntegrityByFile(pdfBuffer: Buffer, integrityIdInput?: string) {
   const computedSha256 = computeSha256(pdfBuffer);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[INTEGRITY VERIFY REQUEST]", {
+      bufferLength: pdfBuffer.length,
+      computedSha256,
+      integrityIdInput,
+    });
+  }
 
   // 1. Search by exact hash or integrityId
   let record = await db.integrityRecord.findFirst({
@@ -94,6 +112,15 @@ export async function verifyIntegrityByFile(pdfBuffer: Buffer, integrityIdInput?
       investigation: { select: { title: true, caseNumber: true } },
     },
   });
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[INTEGRITY LOOKUP RESULT]", {
+      found: Boolean(record),
+      recordId: record?.id,
+      recordIntegrityId: record?.integrityId,
+      recordSha256: record?.sha256,
+    });
+  }
 
   // Increment verification count if matched
   if (record) {

@@ -10,17 +10,19 @@ export async function POST(req: Request) {
     const integrityId = (formData.get("integrityId") as string) || undefined;
 
     if (!file) {
+      console.warn("[VERIFY ERROR] No file provided in formData");
       return NextResponse.json({ error: "PDF file is required for verification" }, { status: 400 });
     }
 
-    const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+    const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf" || file.type === "application/octet-stream";
     if (!isPdf) {
-      return NextResponse.json({ error: "Invalid file type. Only PDF documents are allowed." }, { status: 400 });
+      console.warn("[VERIFY ERROR] File is not PDF:", { name: file.name, type: file.type });
+      return NextResponse.json({ error: `Invalid file type (${file.type}). Only PDF documents are allowed.` }, { status: 400 });
     }
 
-    // Maximum 25MB file size check
-    if (file.size > 25 * 1024 * 1024) {
-      return NextResponse.json({ error: "File exceeds maximum size limit (25MB)" }, { status: 400 });
+    // Maximum 100MB file size check
+    if (file.size > 100 * 1024 * 1024) {
+      return NextResponse.json({ error: "File exceeds maximum size limit (100MB)" }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -45,7 +47,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ error: "Failed to process document verification" }, { status: 500 });
+  } catch (err: any) {
+    console.error("[VERIFY API EXCEPTION]", err);
+    return NextResponse.json({ error: "Failed to process document verification: " + (err?.message || "Unknown error") }, { status: 500 });
   }
 }
