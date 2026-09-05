@@ -167,7 +167,7 @@ export function RelationshipDetailPanel({
             href={`/investigations/${investigationId}/assistant`}
             className="text-xs py-1.5 px-2 rounded border border-border bg-background hover:bg-surface hover:border-accent text-text-secondary hover:text-foreground font-medium transition-colors text-center"
           >
-            Ask ARGUS
+            Ask Vyom AI
           </Link>
         </div>
       </div>

@@ -349,7 +349,7 @@ export default function TemporalReconstructionPage() {
             onClick={() => setShowAssistant(true)}
             className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-colors"
           >
-            Ask ARGUS (Temporal)
+            Ask Vyom AI (Temporal)
           </button>
         </div>
       </div>

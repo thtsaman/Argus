@@ -15,7 +15,7 @@ export interface EntityContextData {
   whatToInvestigateNext?: {
     id: string;
     action: string;
-    type: "View Evidence" | "Show in Network" | "View Timeline" | "View Relationship" | "Ask ARGUS";
+    type: "View Evidence" | "Show in Network" | "View Timeline" | "View Relationship" | "Ask Vyom AI";
     targetId?: string;
     entityId?: string;
   }[];
@@ -158,7 +158,7 @@ export function EntityIntelligencePanel({
             }}
             className="text-xs px-2.5 py-1 rounded bg-accent/10 border border-accent/40 text-accent font-medium hover:bg-accent/20 transition-colors flex items-center gap-1 cursor-pointer"
           >
-            ✨ Ask ARGUS
+            ✨ Ask Vyom AI
           </button>
           <a
             href={`/investigations/${investigationId}/timeline?entityId=${entity.id}&entityLabel=${encodeURIComponent(entity.label)}`}
@@ -264,7 +264,7 @@ export function EntityIntelligencePanel({
                   </span>
                   <button
                     onClick={() => {
-                      if (item.type === "Ask ARGUS" && onAskArgus) {
+                      if (item.type === "Ask Vyom AI" && onAskArgus) {
                         onAskArgus();
                       } else if (item.type === "Show in Network" && onFocusGraph) {
                         onFocusGraph(item.targetId || entity.id);

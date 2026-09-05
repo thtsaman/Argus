@@ -207,7 +207,7 @@ export default function GeospatialMapPage() {
               onClick={() => setShowAssistant(true)}
               className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-colors"
             >
-              Ask ARGUS
+              Ask Vyom AI
             </button>
           </div>
         }

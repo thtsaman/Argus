@@ -489,7 +489,7 @@ export default function EvidenceSpacePage() {
         </div>
       </div>
 
-      {/* Contextual Copilot Chat Widget */}
+      {/* Contextual Vyom AI Chat Widget */}
       {showContextualChat && entityDetail && (
         <ContextualChatWidget
           investigationId={id}

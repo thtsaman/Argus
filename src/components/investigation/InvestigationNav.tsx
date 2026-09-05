@@ -256,7 +256,7 @@ export function InvestigationNav({ investigationId }: InvestigationNavProps) {
               transition={{ type: "spring", stiffness: 500, damping: 40 }}
             />
           )}
-          <span className="relative z-10">Assistant</span>
+          <span className="relative z-10">Vyom AI</span>
         </Link>
       </div>
     </div>

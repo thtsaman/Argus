@@ -275,8 +275,8 @@ export default function AssistantPage() {
   return (
     <div className="max-w-[1200px] mx-auto px-6 py-8 space-y-6">
       <PageHeader
-        title="Investigation Assistant & Copilot Threads"
-        description="Evidence-grounded analysis. Conversations and context are automatically persisted across your workspace."
+        title="Vyom AI Investigation & Threads"
+        description="Evidence-grounded intelligence powered by Vyom AI. Context and conversation threads are automatically persisted across your workspace."
       />
 
       {/* Main Grid: History Drawer + Chat Space */}
@@ -416,7 +416,7 @@ export default function AssistantPage() {
                   }`}
                 >
                   <div className="flex justify-between items-center text-[10px] text-text-muted font-mono">
-                    <span>{msg.role === "user" ? "Investigator Query" : "ARGUS Assistant (Grounded)"}</span>
+                    <span>{msg.role === "user" ? "Investigator Query" : "Vyom AI Agent (Grounded)"}</span>
                   </div>
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                   {msg.error && <p className="text-[11px] text-status-rejected mt-1 font-mono">Note: {msg.error}</p>}
@@ -426,7 +426,7 @@ export default function AssistantPage() {
               {loading && (
                 <div className="p-3 bg-background rounded border border-border text-xs text-text-muted flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-accent animate-ping" />
-                  <span>Analyzing retrieved investigation context...</span>
+                  <span>Vyom AI is analyzing retrieved investigation context...</span>
                 </div>
               )}
             </div>

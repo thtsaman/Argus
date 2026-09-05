@@ -261,11 +261,11 @@ export async function GET(
     });
   }
 
-  // Action 5: ARGUS Contextual Deep-Dive
+  // Action 5: Vyom AI Contextual Deep-Dive
   whatToInvestigateNext.push({
-    id: `act-argus-query`,
-    action: `Ask ARGUS for evidence-grounded summary of ${entity.label}'s role across all records.`,
-    type: "Ask ARGUS",
+    id: `act-vyom-query`,
+    action: `Ask Vyom AI for evidence-grounded summary of ${entity.label}'s role across all records.`,
+    type: "Ask Vyom AI",
     entityId,
   });
 

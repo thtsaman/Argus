@@ -321,7 +321,7 @@ export default function FinancialTrailPage() {
               onClick={() => setShowContextualChat((prev) => !prev)}
               className="text-xs px-3 py-1.5 rounded border border-accent/40 bg-accent/10 text-accent font-semibold hover:bg-accent/20 transition-colors"
             >
-              ✨ Ask ARGUS
+              ✨ Ask Vyom AI
             </button>
           </div>
         }

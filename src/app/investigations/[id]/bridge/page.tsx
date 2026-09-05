@@ -273,7 +273,7 @@ export default function BridgeViewPage() {
               onClick={() => setShowAssistant(true)}
               className="px-4 py-1.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
             >
-              Explain This Bridge (Ask ARGUS)
+              Explain This Bridge (Ask Vyom AI)
             </button>
           </div>
         }

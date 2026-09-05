@@ -194,7 +194,7 @@ export default async function InvestigationOverviewPage({
               { href: `/investigations/${id}/timeline`, label: "Timeline", desc: "Temporal patterns" },
               { href: `/investigations/${id}/map`, label: "Map", desc: "Location analysis" },
               { href: `/investigations/${id}/replay`, label: "Replay", desc: "Investigation evolution" },
-              { href: `/investigations/${id}/assistant`, label: "Assistant", desc: "Evidence-grounded AI" },
+              { href: `/investigations/${id}/assistant`, label: "Vyom AI", desc: "Evidence-grounded intelligence" },
             ].map((item) => (
               <Link
                 key={item.href}

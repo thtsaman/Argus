@@ -194,7 +194,7 @@ export function ContextualChatWidget({
         <div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <h4 className="font-serif font-semibold text-xs text-foreground">ARGUS Copilot</h4>
+            <h4 className="font-serif font-semibold text-xs text-foreground">Vyom AI</h4>
           </div>
           <p className="text-[10px] text-accent font-mono mt-0.5 truncate max-w-[240px]">
             Context: {contextLabel}
@@ -204,14 +204,14 @@ export function ContextualChatWidget({
           <button
             onClick={handleOpenFullAssistant}
             className="text-[10px] px-2 py-0.5 border border-border rounded bg-background hover:bg-surface text-text-secondary hover:text-foreground transition-colors"
-            title="Open in Full Assistant Page"
+            title="Open in Full Vyom AI Page"
           >
             Full View ↗
           </button>
           <button
             onClick={onClose}
             className="text-text-muted hover:text-foreground text-xs p-1 rounded transition-colors"
-            title="Close Assistant Copilot"
+            title="Close Vyom AI Widget"
           >
             ✕
           </button>
@@ -225,7 +225,7 @@ export function ContextualChatWidget({
         ) : messages.length === 0 ? (
           <div className="space-y-3 py-4 text-center">
             <p className="text-[11px] text-text-muted">
-              Ask ARGUS questions grounded in evidence for <span className="font-semibold text-foreground">{contextLabel}</span>.
+              Ask Vyom AI questions grounded in evidence for <span className="font-semibold text-foreground">{contextLabel}</span>.
             </p>
             <div className="space-y-1.5">
               {getSuggestedQueries().map((q) => (
@@ -273,7 +273,7 @@ export function ContextualChatWidget({
         {loading && (
           <div className="p-2.5 bg-surface rounded border border-border text-[11px] text-text-muted flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
-            Argus is thinking...
+            Vyom AI is analyzing...
           </div>
         )}
         <div ref={messagesEndRef} />
