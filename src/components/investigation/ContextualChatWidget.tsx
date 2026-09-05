@@ -15,6 +15,7 @@ interface ContextualChatWidgetProps {
   contextType: string;
   contextId: string;
   contextLabel: string;
+  initialQuestion?: string;
   onClose: () => void;
 }
 
@@ -23,6 +24,7 @@ export function ContextualChatWidget({
   contextType,
   contextId,
   contextLabel,
+  initialQuestion,
   onClose,
 }: ContextualChatWidgetProps) {
   const router = useRouter();
@@ -31,6 +33,7 @@ export function ContextualChatWidget({
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
+  const initialSentRef = useRef<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,6 +80,14 @@ export function ContextualChatWidget({
       isMounted = false;
     };
   }, [investigationId, contextType, contextId, contextLabel]);
+
+  // Auto-send initial question if provided
+  useEffect(() => {
+    if (!initLoading && conversationId && initialQuestion && !initialSentRef.current) {
+      initialSentRef.current = true;
+      handleSend(initialQuestion);
+    }
+  }, [initLoading, conversationId, initialQuestion]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
