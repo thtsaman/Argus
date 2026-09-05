@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { PageHeader, SectionHeader, LoadingState } from "@/components/ui/common";
 import { AddToBriefButton } from "@/components/investigation/AddToBriefButton";
+import { setupSpaciousGraphForces, renderGroundedNodeAndLabel } from "@/lib/graph/layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { ContextualChatWidget } from "@/components/investigation/ContextualChatWidget";
 
@@ -148,13 +149,12 @@ export default function FinancialTrailPage() {
   useEffect(() => {
     if (!graphRef.current || graphData.nodes.length === 0) return;
 
-    // Adjust forces for spacious layout
-    const fg = graphRef.current;
-    fg.d3Force("charge")?.strength(-450);
-    fg.d3Force("link")?.distance(140);
+    setupSpaciousGraphForces(graphRef.current);
 
     const timer = setTimeout(() => {
-      fg.zoomToFit(400, 60);
+      if (graphRef.current) {
+        graphRef.current.zoomToFit(400, 50);
+      }
     }, 600);
 
     return () => clearTimeout(timer);
@@ -432,54 +432,21 @@ export default function FinancialTrailPage() {
 
                 const hasFocus = selectedFeId || selectedTx || highlightedPath.length > 0;
                 const isRelevant = !hasFocus || isSelected || inPath || (selectedTx && (selectedTx.senderFinancialEntityId === node.id || selectedTx.receiverFinancialEntityId === node.id));
-                
-                ctx.globalAlpha = isRelevant ? 1.0 : 0.25;
+                const opacity = isRelevant ? 1.0 : 0.25;
 
-                const radius = isSelected ? 8 : 6;
                 const isBankOrUpi = node.type === "BANK_ACCOUNT" || node.type === "UPI_ID";
+                const isExchange = node.type === "EXCHANGE";
+                const nodeColor = isSelected ? "#10b981" : inPath ? "#34d399" : isBankOrUpi ? "#4a6741" : "#8b6914";
 
-                if (isBankOrUpi) {
-                  // High contrast diamond
-                  const dSize = radius * 1.3;
-                  ctx.beginPath();
-                  ctx.moveTo(node.x, node.y - dSize);
-                  ctx.lineTo(node.x + dSize, node.y);
-                  ctx.lineTo(node.x, node.y + dSize);
-                  ctx.lineTo(node.x - dSize, node.y);
-                  ctx.closePath();
-                  ctx.fillStyle = isSelected ? "#10b981" : inPath ? "#34d399" : "#4a6741";
-                  ctx.fill();
-                } else {
-                  // Hexagon for Exchange endpoint
-                  const hSize = radius * 1.4;
-                  ctx.beginPath();
-                  for (let i = 0; i < 6; i++) {
-                    const angle = (Math.PI / 3) * i;
-                    const x = node.x + hSize * Math.cos(angle);
-                    const y = node.y + hSize * Math.sin(angle);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                  }
-                  ctx.closePath();
-                  ctx.fillStyle = "#8b6914";
-                  ctx.fill();
-                }
-
-                if (isSelected || isPulsing) {
-                  ctx.strokeStyle = "#2c2416";
-                  ctx.lineWidth = 2.5 / globalScale;
-                  ctx.stroke();
-                }
-
-                // High Contrast Labels using ARGUS typography
-                const fontSize = Math.max(11 / globalScale, 3.5);
-                ctx.font = `600 ${fontSize}px Source Sans 3, sans-serif`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "top";
-                ctx.fillStyle = "#2c2416";
-                ctx.fillText(node.label, node.x, node.y + radius + 4);
-
-                ctx.globalAlpha = 1.0;
+                renderGroundedNodeAndLabel(node, ctx, globalScale, {
+                  isSelected: isSelected || isPulsing,
+                  inPath,
+                  isBridge: false,
+                  isBankOrUpi,
+                  isExchange,
+                  nodeColor,
+                  opacity,
+                });
               }}
               linkCanvasObjectMode={() => "after"}
               linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { GraphData } from "@/lib/graph/analysis";
 import { getLinkStyle } from "@/components/ui/RelationshipStatus";
 import type { RelationshipStatus } from "@prisma/client";
+import { setupSpaciousGraphForces, renderGroundedNodeAndLabel } from "@/lib/graph/layout";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
@@ -108,85 +109,43 @@ export function EvidenceGraph({
     });
   }
 
+  useEffect(() => {
+    if (!fgRef.current || graphData.nodes.length === 0) return;
+    setupSpaciousGraphForces(fgRef.current);
+    const timer = setTimeout(() => {
+      if (fgRef.current) {
+        fgRef.current.zoomToFit(400, 50);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [graphData]);
+
   const nodeCanvasObject = useCallback(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const label = node.label as string;
       const isSelected = node.id === selectedNodeId;
       const inPath = pathSet.has(node.id as string);
       const isHighlighted = highlightedNodes?.has(node.id as string);
       const isBridge = node.isBridge;
 
-      const hasFocus = selectedNodeId || highlightedPath.length > 0 || highlightedNodes;
-      // Surrounding cluster nodes should remain fully visible (opacity 1) unless explicit path highlighting is active
-      const isRelevant = !hasFocus || isSelected || inPath || isHighlighted || true;
       const opacity = (highlightedPath.length > 0 && !inPath) ? 0.35 : 1;
-
-      const fontSize = Math.max(10 / globalScale, 3);
-      ctx.globalAlpha = opacity;
-
-      // Visual Hierarchy: Bridge (2-2.5x normal size: ~11-12px), Direct neighbors / selected (7-8px), Normal nodes (5px)
-      const radius = isBridge ? 12 : (isSelected || inPath) ? 8 : 5;
       const isBankOrUpi = node.type === "BANK_ACCOUNT" || node.type === "UPI_ID";
       const isExchange = node.type === "EXCHANGE";
+      const nodeColor = isBankOrUpi
+        ? (node.type === "BANK_ACCOUNT" ? "#10b981" : "#06b6d4")
+        : isExchange
+        ? "#f59e0b"
+        : (NODE_COLORS[node.type as string] || "#6b5344");
 
-      if (isBankOrUpi) {
-        // Draw diamond shape for financial bank/UPI nodes
-        const dSize = radius * 1.2;
-        ctx.beginPath();
-        ctx.moveTo(node.x, node.y - dSize);
-        ctx.lineTo(node.x + dSize, node.y);
-        ctx.lineTo(node.x, node.y + dSize);
-        ctx.lineTo(node.x - dSize, node.y);
-        ctx.closePath();
-        ctx.fillStyle = node.type === "BANK_ACCOUNT" ? "#10b981" : "#06b6d4";
-        ctx.fill();
-      } else if (isExchange) {
-        // Draw terminal hexagon shape for Exchange endpoints
-        const hSize = radius * 1.3;
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const angle = (Math.PI / 3) * i;
-          const x = node.x + hSize * Math.cos(angle);
-          const y = node.y + hSize * Math.sin(angle);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = "#f59e0b";
-        ctx.fill();
-      } else {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = isBridge ? "#d97706" : (NODE_COLORS[node.type as string] || "#6b5344");
-        ctx.fill();
-      }
-
-      // Draw prominent outline for Bridge node & selected / path nodes
-      if (isBridge) {
-        ctx.strokeStyle = "#b45309";
-        ctx.lineWidth = 3 / globalScale;
-        ctx.stroke();
-
-        // Extra outer glow ring for Bridge
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius + 4 / globalScale, 0, 2 * Math.PI);
-        ctx.strokeStyle = "rgba(217, 119, 6, 0.4)";
-        ctx.lineWidth = 2 / globalScale;
-        ctx.stroke();
-      } else if (isSelected || inPath) {
-        ctx.strokeStyle = "#2c2416";
-        ctx.lineWidth = 2 / globalScale;
-        ctx.stroke();
-      }
-
-      ctx.font = `${isBridge ? "bold " : ""}${isBridge ? fontSize * 1.15 : fontSize}px Source Sans 3, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = isBridge ? "#92400e" : "#2c2416";
-      ctx.fillText(label, node.x, node.y + radius + 3);
-
-      ctx.globalAlpha = 1;
+      renderGroundedNodeAndLabel(node, ctx, globalScale, {
+        isSelected,
+        inPath,
+        isBridge,
+        isBankOrUpi,
+        isExchange,
+        nodeColor,
+        opacity,
+      });
     },
     [selectedNodeId, highlightedPath, highlightedNodes, pathSet]
   );

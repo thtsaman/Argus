@@ -198,7 +198,7 @@ export async function GET(
   const whatToInvestigateNext: {
     id: string;
     action: string;
-    type: "View Evidence" | "Show in Network" | "View Timeline" | "View Relationship" | "Ask ARGUS";
+    type: "View Evidence" | "Show in Network" | "View Timeline" | "View Relationship" | "Ask Vyom AI";
     targetId?: string;
     entityId?: string;
   }[] = [];
