@@ -7,6 +7,7 @@ import html2canvas from "html2canvas";
 import { PageHeader, LoadingState } from "@/components/ui/common";
 import { ReportDocumentPreview } from "@/components/investigation/ReportDocumentPreview";
 import type { CompleteReportModel } from "@/lib/investigation/reportTypes";
+import { generateReportMarkdown, generateReportCsv } from "@/lib/investigation/reportExporters";
 import { EMAIL_CONFIG } from "@/lib/emailConfig";
 
 export default function InvestigationBriefWorkspacePage() {
@@ -102,20 +103,27 @@ export default function InvestigationBriefWorkspacePage() {
       format: "a4",
     });
 
-    const imgWidth = 210;
+    // 12mm (~45px) safe report margins on all 4 sides
+    const margin = 12;
+    const pageWidth = 210;
     const pageHeight = 297;
+    const printableWidth = pageWidth - margin * 2;
+    const printableHeight = pageHeight - margin * 2;
+
+    const imgWidth = printableWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
     let heightLeft = imgHeight;
-    let position = 0;
+    let position = margin;
 
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+    heightLeft -= printableHeight;
 
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
+    while (heightLeft > 0) {
+      position = margin - (imgHeight - heightLeft);
       pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+      heightLeft -= printableHeight;
     }
 
     const safeTitle = (report?.investigation.title || "Question_Mark").replace(/[^a-zA-Z0-9]/g, "_");
@@ -125,15 +133,44 @@ export default function InvestigationBriefWorkspacePage() {
     return { doc: pdf, base64, filename };
   };
 
-  const handleDownloadPdf = async () => {
-    setGeneratingPdf(true);
-    try {
-      const { doc, filename } = await generatePdfBlob();
-      doc.save(filename);
-    } catch (err: any) {
-      alert("Failed to generate PDF: " + (err?.message || "Unknown error"));
-    } finally {
-      setGeneratingPdf(false);
+  // Export format selection
+  const [exportFormat, setExportFormat] = useState<"PDF" | "MARKDOWN" | "CSV">("PDF");
+
+  const handleExport = async () => {
+    if (!report) return;
+    const safeTitle = (report.investigation.title || "Question_Mark").replace(/[^a-zA-Z0-9]/g, "_");
+    const dateStr = new Date().toISOString().split("T")[0];
+
+    if (exportFormat === "PDF") {
+      setGeneratingPdf(true);
+      try {
+        const { doc, filename } = await generatePdfBlob();
+        doc.save(filename);
+      } catch (err: any) {
+        alert("Failed to generate PDF: " + (err?.message || "Unknown error"));
+      } finally {
+        setGeneratingPdf(false);
+      }
+    } else if (exportFormat === "MARKDOWN") {
+      const mdContent = generateReportMarkdown(report);
+      const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `ARGUS_Investigation_Brief_${safeTitle}_${dateStr}.md`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (exportFormat === "CSV") {
+      const csvContent = generateReportCsv(report);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `ARGUS_Investigation_Brief_${safeTitle}_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -199,11 +236,11 @@ export default function InvestigationBriefWorkspacePage() {
         actions={
           <div className="flex items-center gap-3">
             <button
-              onClick={handleDownloadPdf}
+              onClick={handleExport}
               disabled={generatingPdf}
-              className="px-4 py-2 bg-accent hover:bg-accent-hover text-surface-elevated text-xs font-semibold rounded shadow-2xs transition-colors"
+              className="px-4 py-2 bg-accent hover:bg-accent-hover text-surface-elevated text-xs font-semibold rounded shadow-2xs transition-colors uppercase"
             >
-              {generatingPdf ? "Generating PDF..." : "DOWNLOAD PDF"}
+              {generatingPdf ? "Generating..." : `EXPORT ${exportFormat}`}
             </button>
             <button
               onClick={() => setShowEmailModal(true)}
@@ -272,19 +309,39 @@ export default function InvestigationBriefWorkspacePage() {
             <p className="text-[10px] text-text-muted">Server-side intelligence snapshot</p>
           </div>
 
-          <div className="space-y-3 font-mono text-xs">
+          <div className="space-y-4 font-mono text-xs">
             <div className="p-3 bg-background rounded border border-border space-y-1">
               <span className="text-[10px] text-text-muted block uppercase">TARGET INVESTIGATION</span>
               <strong className="text-foreground block">{report.investigation.title}</strong>
               <span className="text-[10px] text-accent block font-bold">CASE ID: {report.investigation.caseNumber}</span>
             </div>
 
+            {/* EXPORT FORMAT SELECTOR */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-text-muted uppercase font-bold block">EXPORT FORMAT</label>
+              <div className="grid grid-cols-3 gap-1 bg-background p-1 rounded border border-border">
+                {(["PDF", "MARKDOWN", "CSV"] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => setExportFormat(fmt)}
+                    className={`py-1.5 text-[11px] font-bold rounded transition-colors ${
+                      exportFormat === fmt
+                        ? "bg-accent text-surface-elevated shadow-xs"
+                        : "text-text-secondary hover:text-foreground hover:bg-surface"
+                    }`}
+                  >
+                    {fmt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
-              onClick={handleDownloadPdf}
+              onClick={handleExport}
               disabled={generatingPdf}
-              className="w-full py-2.5 bg-accent hover:bg-accent-hover text-surface-elevated font-semibold text-xs rounded shadow-2xs transition-colors block text-center"
+              className="w-full py-2.5 bg-accent hover:bg-accent-hover text-surface-elevated font-semibold text-xs rounded shadow-2xs transition-colors block text-center uppercase"
             >
-              {generatingPdf ? "Building PDF..." : "DOWNLOAD PDF REPORT"}
+              {generatingPdf ? "Building PDF..." : `DOWNLOAD ${exportFormat} REPORT`}
             </button>
 
             <button
