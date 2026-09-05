@@ -181,6 +181,50 @@ export async function POST(
           title: e.evidence.title,
           excerpt: e.evidence.normalizedContent?.slice(0, 1000),
         }));
+      } else {
+        // Fallback: Check if focusId is a Bridge Entity ID
+        const bridgeEntity = await db.entity.findFirst({
+          where: { investigationId: id, OR: [{ id: focusId }, { label: { contains: focusId } }] },
+          include: {
+            sourceRelations: {
+              include: {
+                target: { select: { label: true, type: true } },
+                evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+              },
+            },
+            targetRelations: {
+              include: {
+                source: { select: { label: true, type: true } },
+                evidence: { include: { evidence: { select: { title: true, normalizedContent: true } } } },
+              },
+            },
+          },
+        });
+
+        if (bridgeEntity) {
+          const allRels = [...(bridgeEntity.sourceRelations || []), ...(bridgeEntity.targetRelations || [])];
+          focusDetails = {
+            isBridge: true,
+            label: bridgeEntity.label,
+            type: bridgeEntity.type,
+            description: bridgeEntity.description,
+            connectedNeighborCount: allRels.length,
+          };
+
+          relevantRelationships = allRels.map((r: any) => ({
+            source: r.source?.label || bridgeEntity.label,
+            target: r.target?.label || bridgeEntity.label,
+            type: r.type,
+            status: r.status,
+          }));
+
+          relevantEvidence = allRels.flatMap((r: any) =>
+            (r.evidence || []).map((e: any) => ({
+              title: e.evidence.title,
+              excerpt: e.evidence.normalizedContent?.slice(0, 500),
+            }))
+          );
+        }
       }
     } else if (focusType === "GEOGRAPHIC") {
       // Primary Geographic Context branch: fetch authoritative location, site events, entities, and evidence from DB
