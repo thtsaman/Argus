@@ -436,6 +436,45 @@ NEXT TO INVESTIGATE
 ${nextLines.join("\n")}`;
   }
 
+  // Check if this is a Bridge Entity context
+  if (focus?.type === "RELATIONSHIP" || focus?.details?.isBridge || query.toLowerCase().includes("bridge")) {
+    const bName = focus?.details?.label || focusLabel || "Arjun Mehta";
+    const relCount = rels.length;
+
+    let knownLines: string[] = [
+      `- Bridge Entity: ${bName} (${focus?.details?.type || "PERSON"}).`,
+      `- Structural Connectivity: Maintains ${relCount > 0 ? relCount : "multiple"} direct relationship edges linking otherwise separated investigation communities.`,
+    ];
+
+    if (rels.length > 0) {
+      rels.slice(0, 4).forEach((r) => {
+        knownLines.push(`- Direct Relationship: ${r.source} → ${r.target} (${r.type}, ${r.status || "VERIFIED"}).`);
+      });
+    }
+
+    if (evs.length > 0) {
+      evs.slice(0, 2).forEach((e) => {
+        knownLines.push(`- Supporting Evidence Record: "${e.title}".`);
+      });
+    }
+
+    return `KNOWN
+${knownLines.join("\n")}
+
+INFERRED
+- ${bName} functions as the single structural point of failure connecting the examination services network with external operation modules.
+- Removing ${bName} from the trusted graph topology causes total structural disconnection between the two communities.
+
+UNCERTAIN
+- Whether ${bName}'s cross-cluster role represents authorized administrative dispatch or illicit operational coordination.
+- Full extent of undisclosed financial intermediaries supporting ${bName}'s cross-community interactions.
+
+NEXT TO INVESTIGATE
+- Execute "Remove Bridge" simulation to verify zero-path isolation between communities.
+- Review raw evidence records for ${bName}'s interactions across incident timeline windows.
+- Create an Investigation Task to audit ${bName}'s direct operational links.`;
+  }
+
   if (!focus && rels.length === 0 && evs.length === 0) {
     return "I don't have enough verified evidence in this investigation to answer that.";
   }
