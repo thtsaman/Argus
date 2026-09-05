@@ -83,12 +83,16 @@ export function EvidenceGraph({
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
-        setDims({ width: entry.contentRect.width, height: entry.contentRect.height || height });
+        const w = entry.contentRect.width;
+        const h = entry.contentRect.height;
+        if (w > 0 && h > 0) {
+          setDims({ width: w, height: h });
+        }
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [height]);
+  }, []);
 
   const pathSet = new Set(highlightedPath);
   const pathLinks = new Set<string>();
