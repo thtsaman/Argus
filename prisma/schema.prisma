@@ -87,6 +87,15 @@ enum CandidateStatus {
   REJECTED
 }
 
+enum IntegrityStatus {
+  DRAFT
+  SEALED
+  ANCHORED
+  VERIFIED
+  SUPERSEDED
+  REVOKED
+}
+
 enum AuditAction {
   EVIDENCE_VIEWED
   EVIDENCE_CREATED
@@ -106,6 +115,15 @@ enum AuditAction {
   FINANCIAL_PATH_ANALYSIS
   FINANCIAL_CSV_SEED
   FINANCIAL_LAYERING_ANALYSIS
+  INTEGRITY_RECORD_CREATED
+  DOCUMENT_SEALED
+  DOCUMENT_ISSUED
+  INTEGRITY_ANCHORED
+  DOCUMENT_VERIFICATION_STARTED
+  DOCUMENT_VERIFICATION_SUCCEEDED
+  DOCUMENT_VERIFICATION_FAILED
+  INTEGRITY_RECORD_REVOKED
+  DOCUMENT_VERSION_SUPERSEDED
 }
 
 model User {
@@ -149,6 +167,7 @@ model Investigation {
   tasks       InvestigationTask[]
   financialEntities FinancialEntity[]
   transactions      Transaction[]
+  integrityRecords  IntegrityRecord[]
 }
 
 model Entity {
@@ -515,4 +534,31 @@ model AuditLog {
 
   @@index([createdAt])
   @@index([action])
+}
+
+model IntegrityRecord {
+  id                    String          @id @default(cuid())
+  investigationId       String
+  investigation         Investigation   @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  integrityId           String          @unique
+  version               Int             @default(1)
+  documentType          String          @default("INVESTIGATION_BRIEF")
+  documentName          String
+  sha256                String
+  fingerprintSeed       String
+  status                IntegrityStatus @default(SEALED)
+  issuedAt              DateTime        @default(now())
+  issuedById            String?
+  fileSize              Int?
+  externalAnchorStatus  String?         @default("NOT_CONFIGURED")
+  externalAnchorNetwork String?
+  externalAnchorTxHash  String?
+  externalAnchorBlock   Int?
+  verificationCount     Int             @default(0)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([investigationId])
+  @@index([integrityId])
+  @@index([sha256])
 }
