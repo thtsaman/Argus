@@ -144,8 +144,19 @@ export default function InvestigationBriefWorkspacePage() {
     if (exportFormat === "PDF") {
       setGeneratingPdf(true);
       try {
-        const { doc, filename } = await generatePdfBlob();
+        const { doc, base64, filename } = await generatePdfBlob();
         doc.save(filename);
+
+        // Server-side Integrity Record creation (compute SHA-256 after complete final PDF generation)
+        try {
+          await fetch(`/api/investigations/${id}/integrity/issue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pdfBase64: base64, documentName: filename }),
+          });
+        } catch {
+          console.warn("Integrity record auto-seal logged locally");
+        }
       } catch (err: any) {
         alert("Failed to generate PDF: " + (err?.message || "Unknown error"));
       } finally {

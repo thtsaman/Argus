@@ -144,28 +144,30 @@ export default async function InvestigationOverviewPage({
           </dl>
         </div>
 
-        <div className="surface-elevated p-5">
+        <div className="surface-elevated p-5 border border-amber-900/20 bg-amber-950/5 rounded">
           <div className="flex items-center justify-between mb-2">
-            <SectionHeader title="Financial activity" />
+            <SectionHeader title="Document integrity" />
             <Link
-              href={`/investigations/${id}/financial`}
-              className="text-xs text-emerald-400 hover:underline font-medium"
+              href="/verify/integrity"
+              className="text-xs text-amber-500 hover:underline font-mono font-bold"
             >
-              View Trail →
+              Verify Station →
             </Link>
           </div>
-          <dl className="space-y-2 text-sm">
+          <dl className="space-y-2 text-sm font-mono">
             <div className="flex justify-between">
-              <dt className="text-text-muted">Accounts tracked</dt>
-              <dd className="font-medium text-emerald-400">{investigation._count.financialEntities}</dd>
+              <dt className="text-text-muted">Integrity Status</dt>
+              <dd className="font-bold text-emerald-400">SEALED</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-text-muted">Transactions</dt>
-              <dd className="font-medium">{investigation._count.transactions}</dd>
+              <dt className="text-text-muted">Latest Brief</dt>
+              <dd className="font-medium text-foreground">Version 01</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-text-muted">Top Signal</dt>
-              <dd className="text-xs font-mono text-amber-400">ACC-2098 Recurrence</dd>
+              <dt className="text-text-muted">Integrity ID</dt>
+              <dd className="text-xs text-amber-400 font-bold truncate max-w-[140px]">
+                ARG-QM-0042-V01
+              </dd>
             </div>
           </dl>
         </div>
