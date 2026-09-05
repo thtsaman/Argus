@@ -557,10 +557,10 @@ export default function BridgeViewPage() {
       {showAssistant && (
         <ContextualChatWidget
           investigationId={id}
-          contextType="RELATIONSHIP"
+          contextType="BRIDGE_EXPLANATION"
           contextId={selectedBridge?.entityId || id}
-          contextLabel={selectedBridge?.label || "Bridge View"}
-          initialQuestion={`Why does ${selectedBridge?.label || "this bridge entity"} connect ${selectedBridge?.clusterA.name || "Cluster A"} and ${selectedBridge?.clusterB.name || "Cluster B"}?`}
+          contextLabel={`Explain Bridge: ${selectedBridge?.label || "Selected Entity"}`}
+          initialQuestion={`Explain this bridge: How does ${selectedBridge?.label || "this entity"} connect ${selectedBridge?.clusterA.name || "Cluster A"} and ${selectedBridge?.clusterB.name || "Cluster B"}?`}
           onClose={() => setShowAssistant(false)}
         />
       )}

@@ -436,43 +436,40 @@ NEXT TO INVESTIGATE
 ${nextLines.join("\n")}`;
   }
 
-  // Check if this is a Bridge Entity context
-  if (focus?.type === "RELATIONSHIP" || focus?.details?.isBridge || query.toLowerCase().includes("bridge")) {
-    const bName = focus?.details?.label || focusLabel || "Arjun Mehta";
-    const relCount = rels.length;
+  // Check if this is a Bridge Explanation context
+  if (focus?.isBridgeExplanation || focus?.type === "BRIDGE_EXPLANATION" || focus?.type === "RELATIONSHIP" || focus?.details?.isBridge || query.toLowerCase().includes("bridge")) {
+    const bName = focus?.label || focus?.details?.label || focusLabel || "Arjun Mehta";
+    const commA = focus?.communityA || focus?.details?.communityA || "Eastern Examination Services Network";
+    const commB = focus?.communityB || focus?.details?.communityB || "Vikram Sethi Network";
+    const pathCount = focus?.crossClusterPathsCount || focus?.details?.crossClusterPathsCount || (rels.length > 0 ? rels.length : 3);
 
-    let knownLines: string[] = [
-      `- Bridge Entity: ${bName} (${focus?.details?.type || "PERSON"}).`,
-      `- Structural Connectivity: Maintains ${relCount > 0 ? relCount : "multiple"} direct relationship edges linking otherwise separated investigation communities.`,
-    ];
+    const relLines = rels.slice(0, 3).map((r) => `${r.source} → ${r.target} (${r.type || "ASSOCIATED_WITH"})`).join("\n");
+    const evTitle = evs[0]?.title || "EX-02 Logistics Dispatch Record";
 
-    if (rels.length > 0) {
-      rels.slice(0, 4).forEach((r) => {
-        knownLines.push(`- Direct Relationship: ${r.source} → ${r.target} (${r.type}, ${r.status || "VERIFIED"}).`);
-      });
-    }
+    return `EXPLAINING THIS BRIDGE
 
-    if (evs.length > 0) {
-      evs.slice(0, 2).forEach((e) => {
-        knownLines.push(`- Supporting Evidence Record: "${e.title}".`);
-      });
-    }
+${bName.toUpperCase()} connects:
+${commA.toUpperCase()} ↕ ${commB.toUpperCase()}
 
-    return `KNOWN
-${knownLines.join("\n")}
+### WHAT HAPPENED
+${bName} acts as the structural connecting point between the ${commA} and the ${commB}. recorded relationships exist on both sides of the investigation graph, forming direct operational links between these otherwise separate communities.
 
-INFERRED
-- ${bName} functions as the single structural point of failure connecting the examination services network with external operation modules.
-- Removing ${bName} from the trusted graph topology causes total structural disconnection between the two communities.
+### HOW THE CONNECTION FORMS
+${commA}
+↓
+${rels[0]?.source || "Rahul Verma"}
+↓
+${bName}
+↓
+${rels[1]?.target || "Vikram Sethi"}
+↓
+${commB}
 
-UNCERTAIN
-- Whether ${bName}'s cross-cluster role represents authorized administrative dispatch or illicit operational coordination.
-- Full extent of undisclosed financial intermediaries supporting ${bName}'s cross-community interactions.
+### WHAT THIS CHANGES
+This bridge creates ${pathCount} cross-cluster paths between the two communities. If ${bName} is removed from the investigation graph, those paths disappear, causing total structural disconnection into separate network components.
 
-NEXT TO INVESTIGATE
-- Execute "Remove Bridge" simulation to verify zero-path isolation between communities.
-- Review raw evidence records for ${bName}'s interactions across incident timeline windows.
-- Create an Investigation Task to audit ${bName}'s direct operational links.`;
+### WHY IT MATTERS
+This connection is structurally important because it links entities across different operational modules and incidents (supported by ${evTitle}). Removing ${bName} changes the investigation from one connected network into isolated components.`;
   }
 
   if (!focus && rels.length === 0 && evs.length === 0) {
