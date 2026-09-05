@@ -68,6 +68,31 @@ export default function InvestigationBriefWorkspacePage() {
       useCORS: true,
       logging: false,
       backgroundColor: "#fcfbf9",
+      onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.getElementById("argus-report-document");
+        if (clonedEl) {
+          clonedEl.style.color = "#1a1a1a";
+          clonedEl.style.backgroundColor = "#fcfbf9";
+          const allElements = clonedEl.querySelectorAll("*");
+          const isModernColor = (val: string) => /lab|oklab|oklch|lch/i.test(val);
+
+          allElements.forEach((node) => {
+            const htmlNode = node as HTMLElement;
+            if (htmlNode.style) {
+              const comp = window.getComputedStyle(htmlNode);
+              if (isModernColor(comp.color || "") || isModernColor(htmlNode.style.color || "")) {
+                htmlNode.style.color = "#1a1a1a";
+              }
+              if (isModernColor(comp.backgroundColor || "") || isModernColor(htmlNode.style.backgroundColor || "")) {
+                htmlNode.style.backgroundColor = "transparent";
+              }
+              if (isModernColor(comp.borderColor || "") || isModernColor(htmlNode.style.borderColor || "")) {
+                htmlNode.style.borderColor = "#e5e4df";
+              }
+            }
+          });
+        }
+      },
     });
 
     const imgData = canvas.toDataURL("image/png");
@@ -130,14 +155,21 @@ export default function InvestigationBriefWorkspacePage() {
         }),
       });
 
-      const resData = await res.json();
+      const textResponse = await res.text();
+      let resData: any = {};
+      try {
+        resData = JSON.parse(textResponse);
+      } catch {
+        throw new Error(textResponse.slice(0, 150) || "Server returned non-JSON response");
+      }
+
       if (!res.ok) {
-        throw new Error(resData.error || "Email delivery failed");
+        throw new Error(resData.error || `Email delivery failed (${res.status})`);
       }
 
       setEmailStatus({
         type: "success",
-        message: `Investigation brief sent successfully to ${recipient} at ${new Date().toLocaleTimeString()}.`,
+        message: `Brief dispatched to ${recipient} via SMTP [ID: ${resData.messageId || "OK"}] · ${resData.smtpResponse || "Accepted"}`,
       });
     } catch (err: any) {
       setEmailStatus({

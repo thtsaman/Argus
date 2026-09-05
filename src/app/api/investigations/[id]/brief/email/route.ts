@@ -32,12 +32,24 @@ export async function POST(
     }
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: Number(process.env.EMAIL_PORT) || 465,
+      secure: true, // SSL for port 465
       auth: {
         user: emailUser,
         pass: emailPass,
       },
+      connectionTimeout: 10000,
     });
+
+    try {
+      await transporter.verify();
+    } catch (verifyErr: any) {
+      return NextResponse.json(
+        { error: `SMTP Authentication / Connection Failed: ${verifyErr.message}` },
+        { status: 500 }
+      );
+    }
 
     const htmlBody = `
       <!DOCTYPE html>
@@ -89,7 +101,7 @@ export async function POST(
 
     const pdfBuffer = Buffer.from(pdfBase64.replace(/^data:application\/pdf;base64,/, ""), "base64");
 
-    await transporter.sendMail({
+    const mailInfo = await transporter.sendMail({
       from: `"ARGUS System" <${emailUser}>`,
       to: recipient,
       subject: subject,
@@ -103,7 +115,16 @@ export async function POST(
       ],
     });
 
-    return NextResponse.json({ success: true, message: "Email sent successfully", recipient, timestamp: new Date().toISOString() });
+    console.log("ARGUS SMTP Response:", mailInfo.messageId, mailInfo.response);
+
+    return NextResponse.json({
+      success: true,
+      message: "Email sent successfully",
+      recipient,
+      messageId: mailInfo.messageId,
+      smtpResponse: mailInfo.response,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err: any) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
