@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { AddToBriefButton } from "@/components/investigation/AddToBriefButton";
 
 interface Message {
   id: string;
@@ -248,8 +249,21 @@ export function ContextualChatWidget({
                   : "bg-surface mr-6 border border-border shadow-2xs"
               }`}
             >
-              <div className="text-[9px] font-mono text-text-muted uppercase mb-1">
-                {m.role === "user" ? "Investigator" : "ARGUS AI"}
+              <div className="flex justify-between items-center text-[9px] font-mono text-text-muted uppercase mb-1">
+                <span>{m.role === "user" ? "Investigator" : "ARGUS AI"}</span>
+                {m.role === "assistant" && (
+                  <AddToBriefButton
+                    itemType="ANALYSIS"
+                    itemData={{
+                      id: m.id,
+                      question: messages.find((prev) => prev.role === "user")?.content || query || "Investigative Query",
+                      response: m.content,
+                      contextLabel: contextLabel,
+                    }}
+                    label="+ Add to Brief"
+                    className="text-[9px] px-1.5 py-0.5 border border-amber-700/30 bg-amber-700/10 text-amber-800 rounded font-mono"
+                  />
+                )}
               </div>
               <p className="whitespace-pre-wrap text-[11px]">{m.content}</p>
               {m.error && <p className="text-[10px] text-status-rejected font-mono mt-1">{m.error}</p>}
