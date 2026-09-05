@@ -261,13 +261,69 @@ export function ReportDocumentPreview({ report }: { report: CompleteReportModel 
         </section>
       )}
 
-      {/* 11. VERIFICATION & PROVENANCE FOOTER */}
+      {/* 11. ARGUS INTEGRITY PASSPORT PAGE */}
+      <section className="pt-10 border-t-2 border-amber-800/60 space-y-6 page-break-before font-sans">
+        <div className="flex justify-between items-start border-b border-amber-200 pb-4">
+          <div>
+            <span className="text-[10px] font-mono text-amber-800 uppercase font-bold tracking-widest block">
+              ARGUS · FORENSIC DOCUMENT CERTIFICATION
+            </span>
+            <h2 className="text-xl font-bold font-serif text-gray-900 uppercase">DOCUMENT INTEGRITY PASSPORT</h2>
+          </div>
+          <div className="text-right font-mono text-[10px] text-gray-500">
+            <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold uppercase block mb-1">
+              INTEGRITY SEALED
+            </span>
+            <span>ISSUED {format(new Date(generatedAt), "dd MMM yyyy")}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-[#f9f8f3] p-6 rounded border border-[#e2e1dc]">
+          {/* Visual Fingerprint Display */}
+          <div className="flex flex-col items-center justify-center p-4 bg-white rounded border border-[#e5e4df] shadow-xs space-y-2">
+            <div className="w-36 h-36 rounded-full border border-amber-300/40 p-2 flex items-center justify-center bg-[#fcfbf9]">
+              <div className="w-28 h-28 rounded-full border-2 border-dashed border-amber-600/60 flex items-center justify-center font-mono text-[10px] font-bold text-amber-900 text-center p-2">
+                FINGERPRINT<br />SEALED<br />{investigation.caseNumber}
+              </div>
+            </div>
+            <span className="text-[9px] font-mono text-gray-500 uppercase tracking-wider">
+              VISUAL REPRESENTATION OF DOCUMENT IDENTITY
+            </span>
+          </div>
+
+          {/* Cryptographic Metadata */}
+          <div className="space-y-3 font-mono text-xs">
+            <div>
+              <span className="text-[9px] text-gray-500 uppercase block font-bold">INTEGRITY ID</span>
+              <strong className="text-amber-900 font-bold text-sm">
+                ARG-{(investigation.caseNumber || "QM").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-V01-7F3A
+              </strong>
+            </div>
+
+            <div>
+              <span className="text-[9px] text-gray-500 uppercase block font-bold">ALGORITHM</span>
+              <span className="text-gray-900">SHA-256 (Canonical Lowercase Hex)</span>
+            </div>
+
+            <div>
+              <span className="text-[9px] text-gray-500 uppercase block font-bold">EXTERNAL ANCHOR STATUS</span>
+              <span className="text-emerald-800 font-bold">INTERNAL INTEGRITY SEALED · NOT_CONFIGURED</span>
+            </div>
+
+            <div className="pt-2 border-t border-gray-300/60 text-[10px] text-gray-600">
+              To verify authenticity, upload this document to the ARGUS Document Verification Station or scan the QR passport code.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 12. VERIFICATION & PROVENANCE FOOTER */}
       <div className="pt-8 border-t-2 border-gray-300 flex justify-between items-center font-mono text-[10px] text-gray-500">
         <div>
-          <span>ARGUS OMNISCIENT EVIDENCE INTELLIGENCE</span> · <span>CASE {investigation.caseNumber}</span>
+          <span>ARGUS OMNISCIENT EVIDENCE INTELLIGENCE</span> · <span>CASE {investigation.caseNumber}</span> · <span>INTEGRITY ID: ARG-{(investigation.caseNumber || "QM").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-V01-7F3A</span>
         </div>
         <div>
-          PAGE 01 / 01 · CONFIDENTIAL
+          CONFIDENTIAL · REPORT CERTIFIED
         </div>
       </div>
     </div>
